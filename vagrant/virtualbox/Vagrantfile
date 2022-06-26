@@ -1,0 +1,33 @@
+# -*- mode: ruby -*-
+# nvim: set ft=ruby :
+
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  # General Vagrant VM configuration.
+  config.vm.box = "centos7-virtualbox"
+
+  config.ssh.username = 'packer'
+  config.ssh.password = 'packer'
+  config.ssh.insert_key = false
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.provider :virtualbox do |v|
+    v.memory = 256
+    v.linked_clone = true
+  end
+
+  # Application server
+  config.vm.define "app" do |app|
+    app.vm.hostname = "test-app.dev"
+    app.vm.network :private_network, ip: "192.168.60.4"
+  end
+
+
+  # Database server
+  config.vm.define "db" do |db|
+    db.vm.hostname = "test-db.dev"
+    db.vm.network :private_network, ip: "192.168.60.6"
+  end
+end

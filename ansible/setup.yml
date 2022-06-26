@@ -1,0 +1,81 @@
+---
+- name: "Setup.yml"
+  hosts: localhost
+  gather_facts: yes
+  become: yes
+  tasks:
+
+  - name: Create vim configuration file
+    file:
+      path: /root/.vimrc
+      state: touch
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Configure vim
+    blockinfile:
+      path: /root/.vimrc
+      block: |
+        set nocompatible
+        set number
+        set autoindent
+        set tabstop=4
+        set shiftwidth=4
+        set expandtab
+        syntax on
+        highlight Comment ctermfg=LightCyan
+      marker: ""
+      state: present
+
+  - name: Disable UseDNS
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "^UseDNS"
+      line: "UseDNS no"
+      state: present
+
+  - name: Disable GSSAPIAuthentication
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "^GSSAPIAuthentication"
+      line: "GSSAPIAuthentication no"
+      state: present
+
+  - name: Install epel repo (RedHat)
+    yum:
+      name: "epel-release"
+      state: latest
+    when: ansible_os_family == "RedHat"
+
+  - name: Upgrade all packages (RedHat)
+    yum:
+      name: "*"
+      state: latest
+    when: ansible_os_family == "RedHat"
+
+  - name: Install packages (RedHat)
+    yum:
+      name: "{{ packages }}"
+      state: latest
+    vars:
+      packages:
+      - bash-completion
+      - net-tools
+      - ccze
+      - curl
+      - git
+      - rsync
+      - screen
+      - tcpdump
+      - vim
+      - wget
+    when: ansible_os_family == "RedHat"
+
+  - name: Install open-vm-tools (RedHat)
+    yum:
+      name: open-vm-tools
+      state: latest
+    when: 
+      - ansible_os_family == "RedHat"
+      - ansible_virtualization_type == "VMware"
