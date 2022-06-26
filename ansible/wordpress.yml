@@ -1,0 +1,12 @@
+---
+- name: "Wordpress.yml"
+  hosts: localhost
+  gather_facts: yes
+  become: yes
+  tasks:
+
+  - name: Install Apache web server
+    yum:
+      name: "httpd"
+      state: latest
+    when: ansible_os_family == "RedHat"
