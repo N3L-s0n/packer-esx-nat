@@ -1,0 +1,50 @@
+---
+- hosts: db
+  become: yes
+
+  vars_files:
+    - vars.yml
+
+  handlers:
+    - name: restart firewalld
+      service: name=firewalld state=restarted
+
+  tasks:
+    - name: Install MariaDB packages
+      yum: name={{ item }} state=present
+      with_items:
+        - mariadb-server
+        - MySQL-python
+    - name: Ensure MariaDB is running
+      service:
+        name: mariadb
+        state: started
+
+    - name: Open port 3306
+      firewalld:
+        permanent: yes
+        immediate: yes
+        service: mysql
+        state: enabled
+      notify: restart firewalld
+      tags:
+        - firewall
+
+    - name: Create DB for WordPress
+      community.mysql.mysql_db:
+        name: "{{ wp_db }}"
+        login_host: 'localhost'
+        login_user: 'root'
+        login_password: ''
+        state: present
+
+    - name: Create DB user
+      community.mysql.mysql_user:
+        name: "{{ wp_user }}"
+        host: "{{ app_host }}"
+        password: "{{ wp_password }}"
+        priv: "{{ wp_db }}.*:ALL"
+        login_host: 'localhost'
+        login_user: 'root'
+        login_password: ''
+        state: present

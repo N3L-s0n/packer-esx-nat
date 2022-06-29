@@ -1,0 +1,111 @@
+---
+- hosts: app
+  become: yes
+
+  vars_files:
+    - vars.yml
+
+  handlers:
+    - name: restart apache
+      service: name=httpd state=restarted
+
+    - name: restart firewalld
+      service: name=firewalld state=restarted
+
+  tasks:
+    - name: Daemon reload
+      systemd:
+        daemon_reload: yes
+
+    - name: Install apache packages
+      yum:
+        name: httpd
+        state: present
+
+    - name: Ensure httpd is running
+      service:
+        name: httpd
+        state: started
+
+    - name: Open port 80
+      firewalld:
+        service: http
+        permanent: true
+        state: enabled
+      notify: restart firewalld
+
+      # In order to get a newer PHP versio
+    - name: Install PHP Remi Repository
+      yum:
+        name: https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+        update_cache: yes
+        state: latest
+
+    - name: Install PHP
+      yum: name={{ item }} state=latest enablerepo="remi,remi-php80"
+      with_items:
+        - php
+        - php-mysql
+        - php-gd
+      notify: restart apache
+
+    - name: Create HOST directory
+      file:
+        path: "/var/www/{{ http_host }}"
+        state: directory
+        owner: packer
+        group: packer
+        mode: '0755'
+
+    - name: Set Apache VirtualHost
+      template:
+        src: "httpd.conf"
+        dest: "/etc/httpd/conf.d/{{ http_conf }}"
+        owner: root
+        group: root
+        mode: u=rw,g=r,o=r
+
+    - name: Download and unpack latest WordPress
+      unarchive:
+        src: http://wordpress.org/latest.tar.gz
+        dest: "/var/www/{{ http_host }}"
+        remote_src: yes
+        creates: "/var/www/{{ http_host }}/wordpress"
+
+    - name: Copy WordPress sample config file
+      command: mv /var/www/{{ http_host }}/wordpress/wp-config-sample.php /var/www/{{ http_host }}/wordpress/wp-config.php creates=/var/www/{{ http_host }}/wordpress/wp-config.php
+      tags:
+        - wordpress configuration
+
+    - name: Update WordPress config file with database
+      lineinfile:
+        path: "/var/www/{{ http_host }}/wordpress/wp-config.php"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - {'regexp': "define\\( 'DB_NAME', '(.)+' \\);", 'line': "define( 'DB_NAME', '{{wp_db}}' );"}
+        - {'regexp': "define\\( 'DB_USER', '(.)+' \\);", 'line': "define( 'DB_USER', '{{wp_user}}' );"}
+        - {'regexp': "define\\( 'DB_PASSWORD', '(.)+' \\);", 'line': "define( 'DB_PASSWORD', '{{wp_password}}' );"}
+        - {'regexp': "define\\( 'DB_HOST', '(.)+' \\);", 'line': "define( 'DB_HOST', '{{db_host}}' );"}
+      notify: restart apache
+      tags:
+        - wordpress configuration
+
+    - name: Enable SELinux
+      selinux:
+        policy: targeted
+        state: enforcing
+      tags:
+        - selinux
+    - name: Httpd can connect db
+      command: setsebool -P httpd_can_network_connect_db 1
+      notify: restart apache
+      tags:
+        - selinux
+
+    - name: Httpd can network connect
+      command: setsebool -P httpd_can_network_connect 1
+      notify: restart apache
+      tags:
+        - selinux
+

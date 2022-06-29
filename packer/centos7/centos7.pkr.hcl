@@ -9,7 +9,7 @@ source "virtualbox-iso" "local"{
     ]
 
     headless = false
-    http_directory = "packer/http"
+    http_directory = "packer/centos7/http"
     guest_os_type = "RedHat_64"
 
     communicator = "ssh"
@@ -36,7 +36,7 @@ source "vmware-iso" "esxi"{
     disk_type_id = "thin"
 
     cd_files = [
-        "./packer/http/ks.cfg"
+        "./packer/centos7/http/ks.cfg"
     ]
     cd_label = "OEMDRV"
 
@@ -46,16 +46,13 @@ source "vmware-iso" "esxi"{
     ]
 
     headless = false
-    http_directory = "packer/http"
+    http_directory = "packer/centos7/http"
     guest_os_type = "centos-64"
 
     communicator = "ssh"
     ssh_port = 22
 
-    ssh_bastion_host = var.bastion_host
-    ssh_bastion_username = var.bastion_username
-    ssh_bastion_password = var.bastion_password
-
+    ssh_host     = var.ssh_address
     ssh_username = var.ssh_username
     ssh_password = var.ssh_password
     ssh_timeout  = "25m"
@@ -73,7 +70,10 @@ source "vmware-iso" "esxi"{
     # This must be set to "true" when using VNC with ESXi 6.5 or 6.7.
     vnc_disable_password    = true
 
-    network_name = "LAN"
+    network_name = "WAN"
+   
+    format = "vmx"
+    vmx_remove_ethernet_interfaces = true
 }
 
 
@@ -104,7 +104,7 @@ build {
     }
 
     post-processor "vagrant" {
-        keep_input_artifact = false
+        keep_input_artifact = true
         output = "vagrant/boxes/centos7_{{.BuildName}}.box"
     }
 }
