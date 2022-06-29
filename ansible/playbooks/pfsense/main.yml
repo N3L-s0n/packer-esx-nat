@@ -1,0 +1,54 @@
+---
+- hosts: pfsense
+  collections: pfsensible.core
+  vars_files: 
+    - vars.yml
+  tasks:
+    - name: "Install sudo package"
+      package:
+        name:
+          - pfSense-pkg-sudo
+        state: present
+
+    - name: "Add nac interface"
+      pfsense_interface:
+        descr: NAC
+        blockpriv: False
+        interface: em2
+        ipv4_address: "{{ nac_addr }}"
+        ipv4_prefixlen: 24
+        ipv4_type: static
+        state: present
+        enable: True
+
+    - name: "Add nac gateway"
+      pfsense_gateway:
+        name: nac_gateway
+        interface: NAC
+        gateway: "{{ nac_gateway }}"
+        state: present
+        disabled: False
+        ipprotocol: inet
+
+
+    - name: "Port forward servers"
+      pfsense_nat_port_forward:
+        descr: 'ssh_{{ item.name }}'
+        interface: wan
+        source: any
+        destination: "(self):{{ item.dest_port }}"
+        target: "{{ item.target_addr }}:22"
+        associated_rule: pass
+        state: present
+      with_items: "{{ dnat }}"
+
+    - name: "Port forward HTTP"
+      pfsense_nat_port_forward:
+        descr: 'http_app'
+        interface: wan
+        source: any
+        destination: "(self):8080"
+        target: "{{ app_addr }}:80"
+        associated_rule: pass
+        state: present
+

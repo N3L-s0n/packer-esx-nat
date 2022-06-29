@@ -1,0 +1,67 @@
+# -*- mode: ruby -*-
+# nvim: set ft=ruby :
+
+
+VAGRANTFILE_API_VERSION = "2"
+HOSTNAME = "172.24.131.15"
+USERNAME = "nelson.alvarezcedeno"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.define "app" do |app|
+    app.vm.box = 'centos7-esxi'
+    app.vm.hostname = 'app.dev'
+    app.vm.synced_folder('.', '/vagrant', type: 'nfs', disabled: true)
+
+    app.vm.provider :vmware_esxi do |esxi|
+
+      esxi.esxi_hostname = HOSTNAME
+      esxi.esxi_username = USERNAME
+      esxi.esxi_password = 'prompt:'
+
+      esxi.guest_username = "packer"
+
+      esxi.guest_numvcpus = 1
+      esxi.guest_memsize = 1024
+      esxi.esxi_disk_store = '16GB'
+
+      esxi.esxi_disk_store = "vmstorage"
+      esxi.guest_disk_type = 'thin'
+      esxi.guest_nic_type = 'e1000e'
+      esxi.guest_guestos = 'centos-64'
+
+      esxi.esxi_virtual_network = ['LAN']
+
+      esxi.debug = 'true'
+    end
+  end
+
+  config.vm.define "db" do |db|
+    db.vm.box = 'centos7-esxi'
+    db.vm.hostname = 'db.dev'
+    db.vm.synced_folder('.', '/vagrant', type: 'nfs', disabled: true)
+
+    db.vm.provider :vmware_esxi do |esxi|
+
+      esxi.esxi_hostname = HOSTNAME
+      esxi.esxi_username = USERNAME
+      esxi.esxi_password = 'prompt:'
+
+      esxi.guest_username = "packer"
+
+      esxi.guest_numvcpus = 1
+      esxi.guest_memsize = 1024
+      esxi.esxi_disk_store = '16GB'
+
+      esxi.esxi_disk_store = "vmstorage"
+      esxi.guest_disk_type = 'thin'
+      esxi.guest_nic_type = 'e1000e'
+      esxi.guest_guestos = 'centos-64'
+
+      esxi.esxi_virtual_network = ['LAN']
+
+      esxi.debug = 'true'
+    end
+  end
+
+end
