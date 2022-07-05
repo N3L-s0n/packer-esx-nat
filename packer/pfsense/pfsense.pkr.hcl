@@ -46,8 +46,8 @@ source "virtualbox-iso" "local"{
 
 source "vmware-iso" "esxi"{
 
-    vm_name = "PfSense"
-    vmdk_name = "PfSenseDisk"
+    vm_name = "pfsense"
+    vmdk_name = "pfsenseDisk"
 
     iso_url = var.iso_url
     iso_checksum = var.iso_checksum
@@ -71,14 +71,17 @@ source "vmware-iso" "esxi"{
         "<enter><wait20s><enter><wait5m>",
 
         # Set wan interface
-        "2<enter><wait>1<enter><wait>n<enter><wait>172.24.133.64<enter><wait>24<enter><wait>",
+        "2<enter><wait>1<enter><wait>n<enter><wait>${var.ssh_host}<enter><wait>24<enter><wait>",
         # Gateway address
-        "172.24.133.1<enter><wait>n<enter><wait><enter><wait>y<enter><wait15s><enter><wait10s>",
+        "${var.gateway}<enter><wait>n<enter><wait><enter><wait>y<enter><wait15s><enter><wait10s>",
         # Enable sshd
         "14<enter><wait>y<enter><wait>",
 
         # Disable firewall
-        "8<enter><wait>pfctl -d<enter>"
+        "8<enter><wait>pfctl -d<enter><wait>",
+
+        # Install Open-VM-Tools
+        "pkg install -y pfSense-pkg-Open-VM-Tools<enter><wait40s>"
     ]
 
     shutdown_command = "shutdown -p now"
@@ -88,7 +91,7 @@ source "vmware-iso" "esxi"{
 
     communicator = "ssh"
     ssh_port = 22
-    ssh_host = "172.24.133.64"
+    ssh_host = var.ssh_host
     ssh_username = var.ssh_username
     ssh_password = var.ssh_password
     ssh_wait_timeout = "20m"
@@ -124,6 +127,8 @@ source "vmware-iso" "esxi"{
     }
 
     format = "vmx"
+    keep_registered = true
+    vmx_remove_ethernet_interfaces = true
 }
 
 
