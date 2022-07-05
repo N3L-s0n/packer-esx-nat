@@ -26,8 +26,8 @@ source "virtualbox-iso" "local"{
 
 source "vmware-iso" "esxi"{
 
-    vm_name = "CentOS7"
-    vmdk_name = "CentOS7Disk"
+    vm_name = "centos7"
+    vmdk_name = "centos7disk"
 
     iso_url = var.iso_url
     iso_checksum = var.iso_checksum
@@ -52,7 +52,7 @@ source "vmware-iso" "esxi"{
     communicator = "ssh"
     ssh_port = 22
 
-    ssh_host     = var.ssh_address
+    ssh_host     = var.ssh_host
     ssh_username = var.ssh_username
     ssh_password = var.ssh_password
     ssh_timeout  = "25m"
@@ -73,6 +73,7 @@ source "vmware-iso" "esxi"{
     network_name = "WAN"
    
     format = "vmx"
+    keep_registered = true
     vmx_remove_ethernet_interfaces = true
 }
 
