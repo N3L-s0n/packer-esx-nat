@@ -34,7 +34,7 @@
         state: enabled
       notify: restart firewalld
 
-      # In order to get a newer PHP versio
+      # In order to get a newer PHP version
     - name: Install PHP Remi Repository
       yum:
         name: https://rpms.remirepo.net/enterprise/remi-release-7.rpm
@@ -56,6 +56,8 @@
         owner: packer
         group: packer
         mode: '0755'
+      tags:
+        - apache conf
 
     - name: Set Apache VirtualHost
       template:
@@ -64,6 +66,13 @@
         owner: root
         group: root
         mode: u=rw,g=r,o=r
+      tags:
+        - apache conf
+
+    - name: Set an apache user for administration folder
+      command: htpasswd -cb /etc/httpd/.htpasswd {{ wp_user }} {{ wp_password }}
+      tags:
+        - apache conf
 
     - name: Download and unpack latest WordPress
       unarchive:
@@ -74,6 +83,7 @@
 
     - name: Copy WordPress sample config file
       command: mv /var/www/{{ http_host }}/wordpress/wp-config-sample.php /var/www/{{ http_host }}/wordpress/wp-config.php creates=/var/www/{{ http_host }}/wordpress/wp-config.php
+      notify: restart apache
       tags:
         - wordpress configuration
 
@@ -83,9 +93,9 @@
         regexp: "{{ item.regexp }}"
         line: "{{ item.line }}"
       with_items:
-        - {'regexp': "define\\( 'DB_NAME', '(.)+' \\);", 'line': "define( 'DB_NAME', '{{wp_db}}' );"}
-        - {'regexp': "define\\( 'DB_USER', '(.)+' \\);", 'line': "define( 'DB_USER', '{{wp_user}}' );"}
-        - {'regexp': "define\\( 'DB_PASSWORD', '(.)+' \\);", 'line': "define( 'DB_PASSWORD', '{{wp_password}}' );"}
+        - {'regexp': "define\\( 'DB_NAME', '(.)+' \\);", 'line': "define( 'DB_NAME', '{{db_name}}' );"}
+        - {'regexp': "define\\( 'DB_USER', '(.)+' \\);", 'line': "define( 'DB_USER', '{{db_user}}' );"}
+        - {'regexp': "define\\( 'DB_PASSWORD', '(.)+' \\);", 'line': "define( 'DB_PASSWORD', '{{db_password}}' );"}
         - {'regexp': "define\\( 'DB_HOST', '(.)+' \\);", 'line': "define( 'DB_HOST', '{{db_host}}' );"}
       notify: restart apache
       tags:
