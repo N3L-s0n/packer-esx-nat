@@ -57,7 +57,7 @@ source "vmware-iso" "esxi"{
     disk_size = 8192 # 8 GB disk size
     disk_type_id = "thin" # Thin provisioning
 
-    boot_wait = "1m30s"
+    boot_wait = "1m20s"
     boot_command = [
         # Accept Copyright
         "<enter><wait2s>",
@@ -67,8 +67,9 @@ source "vmware-iso" "esxi"{
         "<enter><wait2s>",
         # Options: Auto (ZFS), Auto (UFS) Bios ...
         "<down><enter><wait5m>",
+        #"<enter><wait5s><enter><wait5s><enter><wait5><space><wait><enter><wait5s><left><enter><wait5m>"
         # Manual Configuration Default No
-        "<enter><wait20s><enter><wait5m>",
+        "<enter><wait10s><enter><wait5m>",
 
         # Set wan interface
         "2<enter><wait>1<enter><wait>n<enter><wait>${var.ssh_host}<enter><wait>24<enter><wait>",
@@ -77,8 +78,11 @@ source "vmware-iso" "esxi"{
         # Enable sshd
         "14<enter><wait>y<enter><wait>",
 
+        # Enable ssh wan
+        "8<enter><wait>easyrule pass wan tcp any 0.0.0.0 22<enter><wait10s>",
+
         # Disable firewall
-        "8<enter><wait>pfctl -d<enter><wait>",
+        "pfctl -d<enter><wait>",
 
         # Install Open-VM-Tools
         "pkg install -y pfSense-pkg-Open-VM-Tools<enter><wait40s>"
@@ -120,11 +124,13 @@ source "vmware-iso" "esxi"{
         "ethernet1.virtualDev" = "e1000e"
         "ethernet1.startConnected" = "TRUE"
 
-        "ethernet2.present" = "TRUE"
-        "ethernet2.networkName" = "WAN"
-        "ethernet2.virtualDev" = "e1000e"
-        "ethernet2.startConnected" = "TRUE"
+        #"ethernet2.present" = "TRUE"
+        #"ethernet2.networkName" = "NAC"
+        #"ethernet2.virtualDev" = "e1000e"
+        #"ethernet2.startConnected" = "TRUE"
     }
+
+    pause_before_connecting = "10m"
 
     format = "vmx"
     keep_registered = true
