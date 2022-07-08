@@ -63,6 +63,31 @@ resource "esxi_portgroup" "lan" {
 
 
 
+# FIREWALL: PFSENSE ======================================
+resource "esxi_guest" "firewall" {
+
+    guest_name  = "firewall"
+    disk_store  = "vmstorage"
+
+    ovf_source  = "../output-pfsense/pfsense.vmx"
+
+    network_interfaces {
+        virtual_network = esxi_vswitch.wan.name
+        virtual_network = esxi_vswitch.lan.name
+        virtual_network = esxi_vswitch.nac.name
+    }
+
+    provisioner "remote-exec" {
+        inline = ["echo waiting..."]
+
+        connection {
+            host        = self.ipv4_address
+            type        = "ssh"
+            user        = var.pfsense_user
+            password    = var.pfsense_pass
+        }
+    }
+}
 
 # ESXi Guest Test Machine
 #resource "esxi_guest" "vmtest" {
