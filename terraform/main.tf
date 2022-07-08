@@ -20,7 +20,7 @@ provider "esxi" {
 #    guest_name      = "vmtest"
 #    disk_store      = "vmstorage"
 #
-#    ovf_source      = "../centos7/centos7.vmx"
+#    ovf_source      = "../output-centos/centos7.vmx"
 #
 #    network_interfaces {
 #        virtual_network = "LAN"
