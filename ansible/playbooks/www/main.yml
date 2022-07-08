@@ -1,5 +1,5 @@
 ---
-- hosts: app
+- hosts: all
   become: yes
 
   vars_files:

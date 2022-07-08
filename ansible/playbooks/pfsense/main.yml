@@ -1,5 +1,5 @@
 ---
-- hosts: pfsense
+- hosts: all
   collections: pfsensible.core
   vars_files: 
     - ../vars.yml
