@@ -2,7 +2,7 @@
 - hosts: pfsense
   collections: pfsensible.core
   vars_files: 
-    - vars.yml
+    - ../vars.yml
   tasks:
     - name: "Install sudo package"
       package:
@@ -15,7 +15,7 @@
         descr: NAC
         blockpriv: False
         interface: em2
-        ipv4_address: "{{ nac_addr }}"
+        ipv4_address: "{{ nac.addr }}"
         ipv4_prefixlen: 24
         ipv4_type: static
         state: present
@@ -25,7 +25,7 @@
       pfsense_gateway:
         name: nac_gateway
         interface: NAC
-        gateway: "{{ nac_gateway }}"
+        gateway: "{{ nac.gateway }}"
         state: present
         disabled: False
         ipprotocol: inet
@@ -35,7 +35,7 @@
       pfsense_nat_port_forward:
         descr: 'ssh_{{ item.name }}'
         interface: wan
-        source: any
+        source: '{{ management_host }}'
         destination: "(self):{{ item.dest_port }}"
         target: "{{ item.target_addr }}:22"
         associated_rule: pass
@@ -48,7 +48,7 @@
         interface: wan
         source: any
         destination: "(self):8080"
-        target: "{{ app_addr }}:80"
+        target: "{{ app_host }}:80"
         associated_rule: pass
         state: present
 
