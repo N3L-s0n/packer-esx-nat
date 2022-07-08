@@ -41,6 +41,14 @@
         state: present
         enable: True
 
+    - name: "Add NAT outbound rule"
+      pfsense_nat_outbound:
+        descr: "NAT outbound traffic"
+        interface: wan
+        source: any
+        destination: any
+        state: present
+
 
     - name: "Port forward servers"
       pfsense_nat_port_forward:
