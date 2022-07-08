@@ -30,6 +30,17 @@
         disabled: False
         ipprotocol: inet
 
+    - name: "Configure lan interface"
+      pfsense_interface:
+        descr: LAN
+        blockpriv: False
+        interface: em1
+        ipv4_address: "{{ lan.addr }}"
+        ipv4_prefixlen: 24
+        ipv4_type: static
+        state: present
+        enable: True
+
 
     - name: "Port forward servers"
       pfsense_nat_port_forward:

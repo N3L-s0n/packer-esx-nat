@@ -84,10 +84,10 @@ resource "esxi_guest" "firewall" {
     }
 
     provisioner "remote-exec" {
-        inline = ["echo waiting..."]
+        inline = ["pkg update"]
 
         connection {
-            host        = self.ip_address
+            host        = var.pfsense_ip
             type        = "ssh"
             user        = var.pfsense_user
             password    = var.pfsense_pass
@@ -95,14 +95,14 @@ resource "esxi_guest" "firewall" {
     }
 
     provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${self.ip_address},' --extra-vars 'ansible_user=${var.pfsense_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/pfsense/main.yml"
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip},' --extra-vars 'ansible_user=${var.pfsense_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/pfsense/main.yml"
     }
 }
 # ========================================================
 
 
 # SERVER: DB =============================================
-resoure "esxi_guest" "db" {
+resource "esxi_guest" "db" {
 
     guest_name      = "db"
     disk_store      = "vmstorage"
@@ -119,10 +119,10 @@ resoure "esxi_guest" "db" {
     }
 
     provisioner "remote-exec" {
-        inline = ["echo waiting..."]
+        inline = ["sudo yum update -y"]
 
         connection {
-            host        = esxi_guest.firewall.ip_address
+            host        = var.pfsense_ip
             port        = var.db_dnat_port
             type        = "ssh"
             user        = var.server_user
@@ -131,7 +131,7 @@ resoure "esxi_guest" "db" {
     }
 
     provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${esxi_guest.firewall.ip_address}:${var.db_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/db/main.yml"
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.db_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/db/main.yml"
     }
 }
 # ========================================================
@@ -155,10 +155,10 @@ resource "esxi_guest" "app" {
     }
 
     provisioner "remote-exec" {
-        inline = ["echo waiting..."]
+        inline = ["sudo yum update -y"]
 
         connection {
-            host        = esxi_guest.firewall.ip_address
+            host        = var.pfsense_ip
             type        = "ssh"
             user        = var.server_user
             password    = var.server_pass
@@ -166,7 +166,7 @@ resource "esxi_guest" "app" {
     }
 
     provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${esxi_guest.firewall.ip_address}:${var.app_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.server_pass}' ../ansible/playbooks/www/main.yml"
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.app_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.server_pass}' ../ansible/playbooks/www/main.yml"
     }
 }
 # ========================================================
