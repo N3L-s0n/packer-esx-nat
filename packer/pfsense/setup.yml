@@ -11,48 +11,25 @@
           - pfSense-pkg-sudo
         state: present
 
-    - name: "Configure wan interface"
-      pfsense_interface:
-        descr: WAN
-        blockpriv: False
-        interface: em0
-        ipv4_address: "{{ wan_addr }}"
-        ipv4_type: static
-        state: present
-        enable: True
-
-    - name: "Add nac interface"
-      pfsense_interface:
-        descr: NAC
-        blockpriv: False
-        interface: em2
-        ipv4_address: "{{ nac_addr }}"
-        ipv4_prefixlen: 24
-        ipv4_type: static
-        state: present
-        enable: True
-      tags:
-        - never
-
     - name: "Add wan gateway"
       pfsense_gateway:
-        name: nac_gateway
+        name: wan_gateway
         interface: WAN
         gateway: "{{ wan_gateway }}"
         disabled: False
         ipprotocol: inet
         state: present
 
-    - name: "Add nac gateway"
-      pfsense_gateway:
-        name: nac_gateway
-        interface: NAC
-        gateway: "{{ nac_gateway }}"
-        disabled: False
-        ipprotocol: inet
+    - name: "Configure wan interface"
+      pfsense_interface:
+        descr: WAN
+        blockpriv: False
+        interface: em0
+        ipv4_address: "{{ wan_addr }}"
+        ipv4_gateway: wan_gateway
+        ipv4_type: static
         state: present
-      tags:
-        - never
+        enable: True
 
     - name: "Allow remote SSH"
       pfsense_rule:
@@ -65,6 +42,3 @@
         source: any
         destination: (self)
         destination_port: 22
-        
-
-
