@@ -10,17 +10,6 @@
           - pfSense-pkg-sudo
         state: present
 
-    - name: "Add nac interface"
-      pfsense_interface:
-        descr: NAC
-        blockpriv: False
-        interface: em2
-        ipv4_address: "{{ nac.addr }}"
-        ipv4_prefixlen: 24
-        ipv4_type: static
-        state: present
-        enable: True
-
     - name: "Add nac gateway"
       pfsense_gateway:
         name: nac_gateway
@@ -29,6 +18,18 @@
         state: present
         disabled: False
         ipprotocol: inet
+
+    - name: "Add nac interface"
+      pfsense_interface:
+        descr: NAC
+        blockpriv: False
+        interface: em2
+        ipv4_address: "{{ nac.addr }}"
+        ipv4_prefixlen: 24
+        ipv4_type: static
+        ipv4_gateway: nac_gateway
+        state: present
+        enable: True
 
     - name: "Configure lan interface"
       pfsense_interface:
@@ -40,15 +41,6 @@
         ipv4_type: static
         state: present
         enable: True
-
-    - name: "Add NAT outbound rule"
-      pfsense_nat_outbound:
-        descr: "NAT outbound traffic"
-        interface: wan
-        source: any
-        destination: any
-        state: present
-
 
     - name: "Port forward servers"
       pfsense_nat_port_forward:
