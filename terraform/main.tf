@@ -98,21 +98,75 @@ resource "esxi_guest" "firewall" {
         command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${self.ip_address},' --extra-vars 'ansible_user=${var.pfsense_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/pfsense/main.yml"
     }
 }
+# ========================================================
 
-# ESXi Guest Test Machine
-#resource "esxi_guest" "vmtest" {
-#    
-#    guest_name      = "vmtest"
-#    disk_store      = "vmstorage"
-#
-#    ovf_source      = "../output-centos/centos7.vmx"
-#
-#    network_interfaces {
-#        virtual_network = "LAN"
-#    }
-#
-#    guestinfo = {
-#        "metadata" = base64gzip(file("test-network.cfg"))
-#        "metadata.encoding" = "gzip+base64"
-#    }
-#}
+
+# SERVER: DB =============================================
+resoure "esxi_guest" "db" {
+
+    guest_name      = "db"
+    disk_store      = "vmstorage"
+
+    ovf_source      = "../output-centos/centos7.vmx"
+
+    network_interfaces {
+        virtual_network = esxi_vswitch.lan.name
+    }
+
+    guestinfo = {
+        "metadata" = base64gzip(file("db-network.cfg"))
+        "metadata.encoding" = "gzip+base64"
+    }
+
+    provisioner "remote-exec" {
+        inline = ["echo waiting..."]
+
+        connection {
+            host        = esxi_guest.firewall.ip_address
+            port        = var.db_dnat_port
+            type        = "ssh"
+            user        = var.server_user
+            password    = var.server_pass
+        }
+    }
+
+    provisioner "local-exec" {
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${esxi_guest.firewall.ip_address}:${var.db_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/db/main.yml"
+    }
+}
+# ========================================================
+
+
+# SERVER: APP ============================================
+resource "esxi_guest" "app" {
+
+    guest_name      = "app"
+    disk_store      = "vmstorage"
+
+    ovf_source      = "../output-centos/centos7.vmx"
+
+    network_interfaces {
+        virtual_network = esxi_vswitch.lan.name
+    }
+
+    guestinfo = {
+        "metadata" = base64gzip(file("app-network.cfg"))
+        "metadata.encoding" = "gzip+base64"
+    }
+
+    provisioner "remote-exec" {
+        inline = ["echo waiting..."]
+
+        connection {
+            host        = esxi_guest.firewall.ip_address
+            type        = "ssh"
+            user        = var.server_user
+            password    = var.server_pass
+        }
+    }
+
+    provisioner "local-exec" {
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${esxi_guest.firewall.ip_address}:${var.app_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.server_pass}' ../ansible/playbooks/www/main.yml"
+    }
+}
+# ========================================================
