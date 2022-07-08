@@ -73,7 +73,13 @@ resource "esxi_guest" "firewall" {
 
     network_interfaces {
         virtual_network = esxi_vswitch.wan.name
+    }
+
+    network_interfaces {
         virtual_network = esxi_vswitch.lan.name
+    }
+
+    network_interfaces {
         virtual_network = esxi_vswitch.nac.name
     }
 
