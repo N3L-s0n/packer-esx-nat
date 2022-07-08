@@ -87,7 +87,7 @@ resource "esxi_guest" "firewall" {
         inline = ["echo waiting..."]
 
         connection {
-            host        = self.ipv4_address
+            host        = self.ip_address
             type        = "ssh"
             user        = var.pfsense_user
             password    = var.pfsense_pass

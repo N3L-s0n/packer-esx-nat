@@ -52,3 +52,15 @@
         associated_rule: pass
         state: present
 
+    - name: "Allow remote SSH"
+      pfsense_rule:
+        name: "Allow wan SSH"
+        after: top
+        action: pass
+        interface: wan
+        ipprotocol: inet
+        protocol: tcp
+        source: '{{ management_host }}'
+        destination: (self)
+        destination_port: 22
+
