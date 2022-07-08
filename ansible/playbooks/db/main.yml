@@ -3,7 +3,7 @@
   become: yes
 
   vars_files:
-    - vars.yml
+    - ../vars.yml
 
   handlers:
     - name: restart firewalld
@@ -32,7 +32,7 @@
 
     - name: Create DB for WordPress
       community.mysql.mysql_db:
-        name: "{{ wp_db }}"
+        name: "{{ db_name }}"
         login_host: 'localhost'
         login_user: 'root'
         login_password: ''
@@ -40,10 +40,10 @@
 
     - name: Create DB user
       community.mysql.mysql_user:
-        name: "{{ wp_user }}"
+        name: "{{ db_user }}"
         host: "{{ app_host }}"
-        password: "{{ wp_password }}"
-        priv: "{{ wp_db }}.*:ALL"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}.*:ALL"
         login_host: 'localhost'
         login_user: 'root'
         login_password: ''

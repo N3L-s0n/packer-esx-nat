@@ -3,7 +3,7 @@
   become: yes
 
   vars_files:
-    - vars.yml
+    - ../vars.yml
 
   handlers:
     - name: restart apache

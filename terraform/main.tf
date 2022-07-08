@@ -15,19 +15,19 @@ provider "esxi" {
 }
 
 # ESXi Guest Test Machine
-resource "esxi_guest" "vmtest" {
-    
-    guest_name      = "vmtest"
-    disk_store      = "vmstorage"
-
-    ovf_source      = "../centos7/centos7.vmx"
-
-    network_interfaces {
-        virtual_network = "LAN"
-    }
-
-    guestinfo = {
-        "metadata" = base64gzip(file("test-network.cfg"))
-        "metadata.encoding" = "gzip+base64"
-    }
-}
+#resource "esxi_guest" "vmtest" {
+#    
+#    guest_name      = "vmtest"
+#    disk_store      = "vmstorage"
+#
+#    ovf_source      = "../centos7/centos7.vmx"
+#
+#    network_interfaces {
+#        virtual_network = "LAN"
+#    }
+#
+#    guestinfo = {
+#        "metadata" = base64gzip(file("test-network.cfg"))
+#        "metadata.encoding" = "gzip+base64"
+#    }
+#}
