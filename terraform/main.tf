@@ -93,6 +93,10 @@ resource "esxi_guest" "firewall" {
             password    = var.pfsense_pass
         }
     }
+
+    provisioner "local-exec" {
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${self.ip_address},' --extra-vars 'ansible_user=${var.pfsense_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/pfsense/main.yml"
+    }
 }
 
 # ESXi Guest Test Machine
