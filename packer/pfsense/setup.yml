@@ -11,26 +11,6 @@
           - pfSense-pkg-sudo
         state: present
 
-    - name: "Add wan gateway"
-      pfsense_gateway:
-        name: wan_gateway
-        interface: WAN
-        gateway: "{{ wan_gateway }}"
-        disabled: False
-        ipprotocol: inet
-        state: present
-
-    - name: "Configure wan interface"
-      pfsense_interface:
-        descr: WAN
-        blockpriv: False
-        interface: em0
-        ipv4_address: "{{ wan_addr }}"
-        ipv4_gateway: wan_gateway
-        ipv4_type: static
-        state: present
-        enable: True
-
     - name: "Allow remote SSH"
       pfsense_rule:
         name: "Allow wan SSH"
@@ -42,3 +22,20 @@
         source: any
         destination: (self)
         destination_port: 22
+
+    - name: "Configure lan interface"
+      pfsense_interface:
+        descr: LAN
+        blockpriv: False
+        interface: em1
+        ipv4_address: "{{ lan_addr }}"
+        ipv4_prefixlen: 24
+        ipv4_type: static
+        state: present
+        enable: True
+
+    - name: "Remove allow all rule"
+      pfsense_rule:
+        name: "Allow all ipv4+ipv6 via pfSsh.php"
+        interface: wan
+        state: absent

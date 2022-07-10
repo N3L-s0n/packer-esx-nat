@@ -1,10 +1,10 @@
 ---
 - name: "Setup.yml"
-  hosts: localhost
+  hosts: all
   gather_facts: yes
   become: yes
-  tasks:
 
+  tasks:
   - name: Create vim configuration file
     file:
       path: /root/.vimrc
@@ -27,21 +27,6 @@
         highlight Comment ctermfg=LightCyan
       marker: ""
       state: present
-
-  - name: Disable UseDNS
-    lineinfile:
-      path: /etc/ssh/sshd_config
-      regexp: "^UseDNS"
-      line: "UseDNS no"
-      state: present
-
-  - name: Disable GSSAPIAuthentication
-    lineinfile:
-      path: /etc/ssh/sshd_config
-      regexp: "^GSSAPIAuthentication"
-      line: "GSSAPIAuthentication no"
-      state: present
-
   - name: Install epel repo (RedHat)
     yum:
       name: "epel-release"
@@ -86,3 +71,29 @@
     when: 
       - ansible_os_family == "RedHat"
       - ansible_virtualization_type == "VMware"
+
+  - name: Enable SSH password auth, commented
+    replace:
+      path: /etc/ssh/sshd_config
+      regexp: '^#\s*PasswordAuthentication.*$'
+      replace: 'PasswordAuthentication yes'
+
+  - name: Enable SSH password auth, uncommented
+    replace:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*PasswordAuthentication.*$'
+      replace: 'PasswordAuthentication yes'
+
+  - name: Disable UseDNS
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "^UseDNS"
+      line: "UseDNS no"
+      state: present
+
+  - name: Disable GSSAPIAuthentication
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "^GSSAPIAuthentication"
+      line: "GSSAPIAuthentication no"
+      state: present

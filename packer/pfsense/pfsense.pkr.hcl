@@ -78,14 +78,14 @@ source "vmware-iso" "esxi"{
         # Enable sshd
         "14<enter><wait>y<enter><wait>",
 
-        # Enable ssh wan
-        "8<enter><wait>easyrule pass wan tcp any 0.0.0.0 22<enter><wait10s>",
-
-        # Disable firewall
-        "pfctl -d<enter><wait>",
+        # Allow wan rules
+        "8<enter><wait>pfSsh.php playback enableallowallwan<enter><wait20s>",
 
         # Install Open-VM-Tools
-        "pkg install -y pfSense-pkg-Open-VM-Tools<enter><wait40s>"
+        "pkg install -y pfSense-pkg-Open-VM-Tools<enter><wait40s>",
+
+        # Wait 3 minutes to change password
+        "<wait3m>"
     ]
 
     shutdown_command = "shutdown -p now"
@@ -94,11 +94,12 @@ source "vmware-iso" "esxi"{
     guest_os_type = "freeBSD"
 
     communicator = "ssh"
+
     ssh_port = 22
     ssh_host = var.ssh_host
     ssh_username = var.ssh_username
     ssh_password = var.ssh_password
-    ssh_wait_timeout = "20m"
+    ssh_wait_timeout = "10m"
 
     remote_type             = "esx5"
     remote_host             = var.esxi_host
@@ -130,8 +131,6 @@ source "vmware-iso" "esxi"{
         #"ethernet2.startConnected" = "TRUE"
     }
 
-    pause_before_connecting = "10m"
-
     format = "vmx"
     keep_registered = true
     vmx_remove_ethernet_interfaces = true
@@ -145,6 +144,14 @@ build {
     provisioner "shell" {
         inline = [
             "echo 'testing ssh'"
+        ]
+    }
+
+    provisioner "ansible" {
+        playbook_file = "packer/pfsense/setup.yml"
+        use_proxy = false
+        extra_arguments = [
+            "--extra-vars", "ansible_user=${var.ssh_username} ansible_password=${var.ssh_password}"
         ]
     }
 

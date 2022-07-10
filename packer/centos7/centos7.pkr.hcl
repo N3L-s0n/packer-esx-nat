@@ -92,7 +92,7 @@ build {
     }
 
     provisioner "ansible-local" {
-        playbook_file = "ansible/setup.yml"
+        playbook_file = "packer/centos7/setup.yml"
     }
 
     provisioner "shell" {
