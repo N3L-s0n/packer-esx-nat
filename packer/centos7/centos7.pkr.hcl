@@ -92,7 +92,7 @@ build {
     provisioner "ansible" {
         playbook_file = "packer/centos7/setup.yml"
         use_proxy = false
-        extra_Arguments = [
+        extra_arguments = [
             "--extra-vars", "ansible_user=${var.ssh_username} ansible_password=${var.ssh_password}"
         ]
     }

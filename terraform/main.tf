@@ -126,12 +126,11 @@ resource "esxi_guest" "db" {
             port        = var.db_dnat_port
             type        = "ssh"
             user        = var.server_user
-            password    = var.server_pass
         }
     }
 
     provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.db_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/db/main.yml"
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.db_dnat_port},' --extra-vars 'ansible_user=${var.server_user} }' ../ansible/playbooks/db/main.yml"
     }
 }
 # ========================================================
@@ -159,14 +158,14 @@ resource "esxi_guest" "app" {
 
         connection {
             host        = var.pfsense_ip
+            port        = var.app_dnat_port
             type        = "ssh"
             user        = var.server_user
-            password    = var.server_pass
         }
     }
 
     provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.app_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ansible_password=${var.server_pass}' ../ansible/playbooks/www/main.yml"
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.app_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ' ../ansible/playbooks/www/main.yml"
     }
 }
 # ========================================================
