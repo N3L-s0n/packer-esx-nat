@@ -85,22 +85,15 @@ build {
     provisioner "shell" {
         execute_command = "echo 'packer'|{{.Vars}} sudo -S -E bash '{{.Path}}'"
         inline = [
-            "yum -y install epel-release",
             "yum -y update",
-            "yum -y install ansible"
         ]
     }
 
-    provisioner "ansible-local" {
+    provisioner "ansible" {
         playbook_file = "packer/centos7/setup.yml"
-    }
-
-    provisioner "shell" {
-        execute_command = "echo 'packer'|{{.Vars}} sudo -S -E bash '{{.Path}}'"
-        inline = [
-            "yum -y autoremove ansible",
-            "yum clean all",
-            "sync"
+        use_proxy = false
+        extra_Arguments = [
+            "--extra-vars", "ansible_user=${var.ssh_username} ansible_password=${var.ssh_password}"
         ]
     }
 

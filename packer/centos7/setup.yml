@@ -2,8 +2,8 @@
 - name: "Setup.yml"
   hosts: all
   gather_facts: yes
-  become: yes
-
+  vars_files:
+    - vars.yml
   tasks:
   - name: Create vim configuration file
     file:
@@ -12,6 +12,7 @@
       owner: root
       group: root
       mode: 0644
+    become: yes
 
   - name: Configure vim
     blockinfile:
@@ -27,17 +28,21 @@
         highlight Comment ctermfg=LightCyan
       marker: ""
       state: present
+    become: yes
+
   - name: Install epel repo (RedHat)
     yum:
       name: "epel-release"
       state: latest
     when: ansible_os_family == "RedHat"
+    become: yes
 
   - name: Upgrade all packages (RedHat)
     yum:
       name: "*"
       state: latest
     when: ansible_os_family == "RedHat"
+    become: yes
 
   - name: Install packages (RedHat)
     yum:
@@ -58,6 +63,7 @@
       - cloud-init
       - python-pip
     when: ansible_os_family == "RedHat"
+    become: yes
 
   - name: Install vmware cloud-init
     shell:
@@ -71,18 +77,33 @@
     when: 
       - ansible_os_family == "RedHat"
       - ansible_virtualization_type == "VMware"
+    become: yes
 
-  - name: Enable SSH password auth, commented
-    replace:
-      path: /etc/ssh/sshd_config
-      regexp: '^#\s*PasswordAuthentication.*$'
-      replace: 'PasswordAuthentication yes'
+  - name: Generate RSA host key
+    command:
+      cmd: ssh-keygen -q -t rsa -f ~/.ssh/id_rsa -C "" -N ""
+      creates: ~/.ssh/id_rsa
+    delegate_to: 127.0.0.1
+    tags:
+      - pubkey
 
-  - name: Enable SSH password auth, uncommented
-    replace:
-      path: /etc/ssh/sshd_config
-      regexp: '^\s*PasswordAuthentication.*$'
-      replace: 'PasswordAuthentication yes'
+  - name: Create .ssh directory
+    file:
+      path: "~/.ssh"
+      state: directory
+      owner: packer
+      group: packer
+      mode: '0700'
+    tags:
+      - pubkey
+
+  - name: Save pubkey
+    template:
+      src: "~/.ssh/id_rsa.pub"
+      dest: "~/.ssh/authorized_keys"
+      mode: '0600'
+    tags:
+      - pubkey
 
   - name: Disable UseDNS
     lineinfile:
@@ -90,6 +111,7 @@
       regexp: "^UseDNS"
       line: "UseDNS no"
       state: present
+    become: yes
 
   - name: Disable GSSAPIAuthentication
     lineinfile:
@@ -97,3 +119,4 @@
       regexp: "^GSSAPIAuthentication"
       line: "GSSAPIAuthentication no"
       state: present
+    become: yes

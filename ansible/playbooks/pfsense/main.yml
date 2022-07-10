@@ -17,7 +17,6 @@
         ipv4_address: "{{ nac.addr }}"
         ipv4_prefixlen: 24
         ipv4_type: static
-        ipv4_gateway: nac_gateway
         state: present
         enable: True
 
