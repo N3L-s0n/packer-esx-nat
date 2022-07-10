@@ -10,6 +10,17 @@
           - pfSense-pkg-sudo
         state: present
 
+    - name: "Add nac interface"
+      pfsense_interface:
+        descr: NAC
+        interface: em2
+        ipv4_address: "{{ nac.addr }}"
+        ipv4_prefixlen: 24
+        ipv4_type: static
+        ipv4_gateway: nac_gateway
+        state: present
+        enable: True
+
     - name: "Add nac gateway"
       pfsense_gateway:
         name: nac_gateway
@@ -19,7 +30,7 @@
         disabled: False
         ipprotocol: inet
 
-    - name: "Add nac interface"
+    - name: "Add gateway to nac interface"
       pfsense_interface:
         descr: NAC
         blockpriv: False
