@@ -81,7 +81,7 @@
 
   - name: Generate RSA host key
     command:
-      cmd: ssh-keygen -q -t rsa -f ~/.ssh/id_rsa -C "" -N ""
+      cmd: ssh-keygen -q -t rsa -f ~/.ssh/id_rsa -C "" -N {{ key_pass }}
       creates: ~/.ssh/id_rsa
     delegate_to: 127.0.0.1
     tags:
