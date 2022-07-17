@@ -5,7 +5,7 @@ source "virtualbox-iso" "local"{
     
     boot_wait = "20s"
     boot_command = [
-        "<tab><bs><bs><bs><bs><bs>text ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter><wait>"
+        "<tab><bs><bs><bs><bs><bs>text ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks_dhcp.cfg<enter><wait>"
     ]
 
     headless = false

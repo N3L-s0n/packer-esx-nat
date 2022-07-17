@@ -1,0 +1,6 @@
+---
+- hosts: archipress-app
+  roles:
+    - httpd
+
+

@@ -1,5 +1,8 @@
 hosts
 
+vars
+defaults
+
 *.vmdk
 *.nvram
 *.mf
@@ -21,4 +24,5 @@ variables.tf
 temp
 
 ks.cfg
+ks_dhcp.cfg
 
