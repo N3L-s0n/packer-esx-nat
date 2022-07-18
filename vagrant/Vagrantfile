@@ -21,36 +21,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision "ansible" do |ansible|
 
     ansible.playbook = "../ansible/playbook.yml"
-    ansible.groups = {
-#     "archipress-load" => ["lb1", "lb2"],
-      "archipress-app"  => ["app1", "app2"]
-    }
   end
 
-  # First load-balancer server
-# config.vm.define "lb1" do |lb1|
-#   lb1.vm.hostname = "test-lb1.dev"
-#   lb1.vm.network "private_network", ip: "192.168.60.11"
-#   lb1.vm.network "private_network", ip: "192.168.60.21", auto_config: false
-# end
-
-  # Second load-balancer server
-# config.vm.define "lb2" do |lb2|
-#   lb2.vm.hostname = "test-lb1.dev"
-#   lb2.vm.network "private_network", ip: "192.168.60.12"
-#   lb2.vm.network "private_network", ip: "192.168.60.22", auto_config: false
-# end
-
-  # First Application server
-  config.vm.define "app1" do |app1|
-    app1.vm.hostname = "test-app1.dev"
-    app1.vm.network "private_network", ip: "192.168.60.13"
-  end
-
-
-  # Second Application server
-  config.vm.define "app2" do |app2|
-    app2.vm.hostname = "test-app2.dev"
-    app2.vm.network "private_network", ip: "192.168.60.14"
+  # Firewall
+  config.vm.define "firewall" do |firewall|
+    firewall.vm.hostname = "test-firewall.dev"
+    firewall.vm.network "private_network", ip: "192.168.56.2" # WAN
+    firewall.vm.network "private_network", ip: "192.168.57.2"  # LAN
+    firewall.vm.network "private_network", ip: "192.168.58.2"  # DMZ
   end
 end
