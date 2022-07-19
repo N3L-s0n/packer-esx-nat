@@ -1,0 +1,41 @@
+---
+# tasks file for iptables
+- name: Flush tables
+  block:
+    - name: Flush Filter
+      ansible.builtin.iptables:
+        table: filter
+        chain: '{{ item }}'
+        flush: yes
+      with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+
+    - name: Flush Nat
+      ansible.builtin.iptables:
+        table: nat
+        chain: '{{ item }}'
+        flush: yes
+      with_items: [ 'INPUT', 'OUTPUT', 'PREROUTING', 'POSTROUTING' ]
+
+    - name: Delete all user-defined chains
+      ansible.builtin.command:
+        cmd: "iptables -X -t {{ item }}"
+      with_items: [ 'filter', 'nat' ]
+
+    # After done configuring we set this to DROP
+    - name: Default Policy Accept
+      ansible.builtin.iptables:
+        table: filter
+        chain: '{{ item }}'
+        policy: ACCEPT
+      with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+
+
+# Run this last, can lock target system
+- name: Default Policy Drop
+  ansible.builtin.iptables:
+    table: filter
+    chain: '{{ item }}'
+    policy: DROP
+  with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+  tags:
+    - never

@@ -26,7 +26,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Firewall
   config.vm.define "firewall" do |firewall|
     firewall.vm.hostname = "test-firewall.dev"
-    firewall.vm.network "private_network", ip: "192.168.56.2" # WAN
+    #firewall.vm.cloud_init content_type: "text/cloud-config", path: "../terraform/firewall.cfg"
+    firewall.vm.network "private_network", ip: "192.168.56.2"  # WAN
     firewall.vm.network "private_network", ip: "192.168.57.2"  # LAN
     firewall.vm.network "private_network", ip: "192.168.58.2"  # DMZ
   end

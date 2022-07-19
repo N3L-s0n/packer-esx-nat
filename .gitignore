@@ -22,7 +22,3 @@ variables.tf
 
 *.vagrant
 temp
-
-ks.cfg
-ks_dhcp.cfg
-

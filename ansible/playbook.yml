@@ -2,5 +2,7 @@
 - hosts: firewall
   roles:
     - httpd
+    - name: iptables
+      become: yes
 
 
