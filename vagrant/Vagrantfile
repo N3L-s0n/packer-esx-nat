@@ -21,6 +21,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision "ansible" do |ansible|
 
     ansible.playbook = "../ansible/playbook.yml"
+
+    ansible.extra_vars = {
+      network: "192.168.56.0",
+    }
   end
 
   # Firewall

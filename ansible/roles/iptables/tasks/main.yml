@@ -1,26 +1,32 @@
 ---
 # tasks file for iptables
+- name: Install iptables and iptables-services
+  ansible.builtin.yum:
+    name: '{{ packages }}'
+    state: latest
+  vars:
+    packages:
+      - iptables
+      - iptables-services
+
+- name: Remove firewalld
+  block:
+    - name: Disable firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: stopped
+      tags:
+        - never
+
+    - name: Yum remove firewalld
+      ansible.builtin.yum:
+        name: firewalld
+        state: absent
+  tags:
+    - remove-firewalld
+
 - name: Flush tables
   block:
-    - name: Flush Filter
-      ansible.builtin.iptables:
-        table: filter
-        chain: '{{ item }}'
-        flush: yes
-      with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
-
-    - name: Flush Nat
-      ansible.builtin.iptables:
-        table: nat
-        chain: '{{ item }}'
-        flush: yes
-      with_items: [ 'INPUT', 'OUTPUT', 'PREROUTING', 'POSTROUTING' ]
-
-    - name: Delete all user-defined chains
-      ansible.builtin.command:
-        cmd: "iptables -X -t {{ item }}"
-      with_items: [ 'filter', 'nat' ]
-
     # After done configuring we set this to DROP
     - name: Default Policy Accept
       ansible.builtin.iptables:
@@ -29,6 +35,132 @@
         policy: ACCEPT
       with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
 
+    - name: Flush Filter and Nat tables
+      ansible.builtin.command:
+        cmd: "iptables -F -t {{ item }}"
+      with_items: [ 'filter', 'nat' ]
+
+    - name: Delete all user-defined chains
+      ansible.builtin.command:
+        cmd: "iptables -X -t {{ item }}"
+      with_items: [ 'filter', 'nat' ]
+
+# FILTER TABLE
+#
+## PRE-COMMON
+- name: Common chain rules
+  block:
+    - name: State tracking Log INVALID
+      ansible.builtin.iptables:
+        chain: '{{ item }}'
+        ctstate: INVALID
+        jump: LOG
+        log_prefix: "DROP INVALID: "
+        log_level: info
+      with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+    
+    - name: State tracking Drop INVALID
+      ansible.builtin.iptables:
+        chain: '{{ item }}'
+        ctstate: INVALID
+        jump: DROP
+      with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+
+    - name: State tracking Accept ESTABLISHED, RELATED
+      ansible.builtin.iptables:
+        chain: '{{ item }}'
+        ctstate: [ 'ESTABLISHED', 'RELATED' ]
+        jump: ACCEPT
+      with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+
+    - name: Allow all INPUT on localhost interface
+      ansible.builtin.iptables:
+        chain: INPUT
+        in_interface: lo
+        jump: ACCEPT
+
+    - name: Allow all OUTPUT on localhost interface
+      ansible.builtin.iptables:
+        chain: OUTPUT
+        out_interface: lo
+        jump: ACCEPT
+
+  tags:
+    - pre-common
+
+
+## INPUT CHAIN
+- name: Input Chain
+  block:
+    - name: Allow new incoming SYN packets on TCP port 22 (SSH)
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 22
+        ctstate: NEW
+        syn: match
+        jump: ACCEPT
+        comment: Accept new SSH connections.
+      tags:
+        - input-ssh
+
+    - name: Allow ping request
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: icmp
+        icmp_type: echo-request
+        jump: ACCEPT
+        comment: Accept incoming ping in all interfaces
+
+    - name: Default INPUT log rule
+      ansible.builtin.iptables:
+        chain: INPUT
+        in_interface: ! lo
+        jump: LOG
+        log_prefix: "DROP: "
+        log_level: info
+  tags:
+    - input-chain
+
+# OUTPUT CHAIN
+- name: Output Chain
+  block:
+    - name: Allow out SYN packets on TCP ports 22 (SSH), 43 (whois), 80 (HTTP), 443 (HTTPS), 4321 (rwhois)
+      ansible.builtin.iptables:
+        chain: OUTPUT
+        protocol: tcp
+        destination_port: '{{ item }}'
+        ctstate: NEW
+        syn: match
+        jump: ACCEPT
+      with_items: [ 22, 43, 80, 443, 4321 ]
+
+    - name: Allow out new packets on UDP ports 53 (DNS)
+      ansible.builtin.iptables:
+        chain: OUTPUT
+        protocol: udp
+        destination_port: 53
+        ctstate: NEW
+        jump: ACCEPT
+
+    - name: Allow out ping requests
+      ansible.builtin.iptables:
+        chain: OUTPUT
+        protocol: icmp
+        icmp_type: echo-request
+        jump: ACCEPT
+        comment: Accept outgoing ping in all interfaces
+
+    - name: Default OUTPUT log rule
+      ansible.builtin.iptables:
+        chain: OUTPUT
+        out_interface: ! lo
+        jump: LOG
+        log_prefix: "DROP: "
+        log_level: info
+
+  tags:
+    - output-chain
 
 # Run this last, can lock target system
 - name: Default Policy Drop
@@ -38,4 +170,24 @@
     policy: DROP
   with_items: [ 'INPUT', 'FORWARD', 'OUTPUT' ]
   tags:
-    - never
+    - default-drop
+
+# Save rules
+- name: Save iptables in /etc/sysconfig/iptables
+  ansible.builtin.command:
+    cmd: service iptables save
+  become: yes
+
+- name: Save configuration in root dir
+  ansible.builtin.shell:
+    cmd: iptables-save > /root/ipt.save
+
+- name: Restart iptables service
+  ansible.builtin.service:
+    name: iptables
+    state: restarted
+
+- name: Enable iptables service
+  ansible.builtin.service:
+    name: iptables
+    enabled: true

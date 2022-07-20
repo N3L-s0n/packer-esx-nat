@@ -1,8 +1,16 @@
 ---
 - hosts: firewall
+  gather_facts: yes
+  pre_tasks:
+    - name: testing
+      ansible.builtin.debug:
+        msg: System {{ inventory_hostname }} has interface {{ hostvars[inventory_hostname]['ansible_' ~ item]['ipv4'] }}
+      with_items: '{{ ansible_interfaces }}'
+      when: "network == hostvars[inventory_hostname]['ansible_' ~ item]['ipv4']['network']"
+      tags:
+        - never
+
   roles:
-    - httpd
+#   - name: httpd
     - name: iptables
       become: yes
-
-
