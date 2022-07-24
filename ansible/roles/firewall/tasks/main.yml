@@ -1,2 +1,37 @@
 ---
 # tasks file for firewall
+- name: Filter table
+  block:
+    - name: Accept rules for TCP
+
+
+
+- name: DNAT rules
+  block:
+    - name: Set DNAT TCP rules for NAT dictionary variable
+      ansible.builtin.iptables:
+        table: nat
+        chain: PREROUTING
+        protocol: tcp
+        match: tcp
+        destination_port: '{{ item.key }}'
+        in_interface: '{{ public_interface }}'
+        jump: DNAT
+        to_destination: '{{ item.value }}'
+        to_port: '{{ item.key }}'
+      with_items: '{{ dnat_tcp | dict2items }}'
+  tags:
+    - dnat
+
+- name: SNAT rules
+  block:
+    - name: Allow private network to internet
+      ansible.builtin.iptables:
+        table: nat
+        chain: POSTROUTING
+        source: '{{ item.value.id }}/{{ item.value.preffix }}'
+        out_interface: '{{ public_interface }}'
+        jump: MASQUERADE
+      with_items: '{{ private_networks | dict2items }}'
+  tags:
+    - snat

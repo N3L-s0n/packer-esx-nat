@@ -70,7 +70,7 @@ source "vmware-iso" "esxi"{
     # This must be set to "true" when using VNC with ESXi 6.5 or 6.7.
     vnc_disable_password    = true
 
-    network_name = "WAN"
+    network_name = "Production_Network"
    
     format = "vmx"
     keep_registered = true

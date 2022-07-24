@@ -1,7 +1,6 @@
 # -*- mode: ruby -*-
 # nvim: set ft=ruby :
 
-
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -23,7 +22,50 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     ansible.playbook = "../ansible/playbook.yml"
 
     ansible.extra_vars = {
-      network: "192.168.56.0",
+
+      "public" => {
+        "wan" => {
+          "network" => "192.168.56.0",
+          "prefix"  => "24"
+        }
+      },
+
+      "private" => {
+
+        "dmz" => {
+          "network" => "192.168.2.0",
+          "prefix"  => "24",
+
+          "forward_from" => {
+
+            "allow" => {
+              "public.wan" => {
+                "any:any" => ["any:80", "any:443", "192.168.2.11:25", "192.168.2.11:443", "192.168.2.11:587"]
+              },
+              "lan" => {
+                "192.168.3.11:any" => ["192.168.2.11:3306"]
+            }},
+
+            "deny" => {
+              "public" => {
+                "any:any" => ["any:3306"]
+            }}
+          }
+        },
+
+        "lan" => {
+          "network" => "192.168.3.0",
+          "prefix"  => "24"
+        }
+      },
+
+      "dnat_tcp" => {
+        "25"  => "192.168.2.11", # SMTP
+        "80"  => "192.168.2.11", # HTTP
+        "443" => "192.168.2.11", # HTTPS
+        "587" => "192.168.2.11", # SMTP
+        "995" => "192.168.2.11"  # POP3s
+      },
     }
   end
 
@@ -31,8 +73,41 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "firewall" do |firewall|
     firewall.vm.hostname = "test-firewall.dev"
     #firewall.vm.cloud_init content_type: "text/cloud-config", path: "../terraform/firewall.cfg"
-    firewall.vm.network "private_network", ip: "192.168.56.2"  # WAN
-    firewall.vm.network "private_network", ip: "192.168.57.2"  # LAN
-    firewall.vm.network "private_network", ip: "192.168.58.2"  # DMZ
+    firewall.vm.network "private_network", ip: "192.168.56.1"  # WAN: Host-Only
+
+    firewall.vm.network "private_network", ip: "192.168.2.1",  # DMZ: Internal Network
+      virtualbox__intnet: "dmz"
+    firewall.vm.network "private_network", ip: "192.168.3.1",  # LAN: Internal Network
+      virtualbox__intnet: "lan"
+  end
+
+  config.vm.define "app" do |app|
+    app.vm.hostname = "test-app.dev"
+    #firewall.vm.cloud_init content_type: "text/cloud-config", path: "../terraform/firewall.cfg"
+    app.vm.network "private_network", ip: "192.168.2.11", netmask: "255.255.255.0",  # DMZ
+      virtualbox__intnet: "dmz"
+
+    $add_routes = <<-'SCRIPT'
+      sudo ip route add 192.168.2.0/24 via 192.168.2.1 dev enp0s8
+      sudo ip route add 192.168.3.0/24 via 192.168.2.1 dev enp0s8
+    SCRIPT
+
+    app.vm.provision "shell",
+      inline: $add_routes
+  end
+
+  config.vm.define "db" do |db|
+    db.vm.hostname = "test-db.dev"
+    #firewall.vm.cloud_init content_type: "text/cloud-config", path: "../terraform/firewall.cfg"
+    db.vm.network "private_network", ip: "192.168.3.11", netmask: "255.255.255.0",  # LAN
+      virtualbox__intnet: "lan"
+
+    $add_routes = <<-'SCRIPT'
+      sudo ip route add 192.168.3.0/24 via 192.168.3.1 dev enp0s8
+      sudo ip route add 192.168.2.0/24 via 192.168.3.1 dev enp0s8
+    SCRIPT
+
+    db.vm.provision "shell",
+      inline: $add_routes
   end
 end

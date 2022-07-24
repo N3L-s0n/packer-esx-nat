@@ -2,34 +2,15 @@
 - name: "Setup.yml"
   hosts: all
   gather_facts: yes
+
   vars_files:
     - vars.yml
-  tasks:
-  - name: Create vim configuration file
-    file:
-      path: /root/.vimrc
-      state: touch
-      owner: root
-      group: root
-      mode: 0644
-    become: yes
 
-  - name: Configure vim
-    blockinfile:
-      path: /root/.vimrc
-      block: |
-        set nocompatible
-        set number
-        set autoindent
-        set tabstop=4
-        set shiftwidth=4
-        set expandtab
-        syntax on
-        highlight Comment ctermfg=LightCyan
-      marker: ""
-      state: present
-    become: yes
+  roles: 
+    - role: '../../ansible/roles/iptables'
+      become: yes
 
+  pre_tasks:
   - name: Install epel repo (RedHat)
     yum:
       name: "epel-release"
@@ -79,6 +60,31 @@
       - ansible_virtualization_type == "VMware"
     become: yes
 
+  post_tasks:
+  - name: Create vim configuration file
+    file:
+      path: /root/.vimrc
+      state: touch
+      owner: root
+      group: root
+      mode: 0644
+    become: yes
+
+  - name: Configure vim
+    blockinfile:
+      path: /root/.vimrc
+      block: |
+        set nocompatible
+        set number
+        set autoindent
+        set tabstop=4
+        set shiftwidth=4
+        set expandtab
+        syntax on
+        highlight Comment ctermfg=LightCyan
+      marker: ""
+      state: present
+    become: yes
   - name: Generate RSA host key
     command:
       cmd: ssh-keygen -q -t rsa -f ~/.ssh/id_rsa -C "" -N {{ key_pass }}
