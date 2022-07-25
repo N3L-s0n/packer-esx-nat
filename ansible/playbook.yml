@@ -1,62 +1,10 @@
 ---
 - hosts: firewall
   gather_facts: yes
-  pre_tasks:
-    - name: Set public NICs names
-      ansible.builtin.set_fact:
-        fpublic : '{{ public | combine( { item[0].key : item[0].value | combine ( { "interface" : item[1] } ) } ) }}'
-      with_nested: 
-        - '{{ public | dict2items }}'
-        - '{{ ansible_interfaces }}'
-      when: 
-        "item[0].value.network == hostvars[inventory_hostname]['ansible_' ~ item[1]]['ipv4']['network']"
-
-    - name: Set private NICs names
-      ansible.builtin.set_fact:
-        fprivate : '{{ fprivate | default({}) | combine( { item[0].key : item[0].value | combine ( { "interface" : item[1] } ) } ) }}'
-      with_nested: 
-        - '{{ private | dict2items }}'
-        - '{{ ansible_interfaces }}'
-      when: 
-        "item[0].value.network == hostvars[inventory_hostname]['ansible_' ~ item[1]]['ipv4']['network']"
-
-    - name: print public network dicts
-      ansible.builtin.debug:
-        msg: '{{ item }}'
-      with_items: '{{ fprivate | dict2items }}'
- 
-#   - name: testing
-#     ansible.builtin.debug:
-#       msg: System {{ inventory_hostname }} has interface {{ hostvars[inventory_hostname]['ansible_' ~ item]['ipv4'] }}
-#     with_items: '{{ ansible_interfaces }}'
-#     when: "public_network == hostvars[inventory_hostname]['ansible_' ~ item]['ipv4']['network']"
-#     tags:
-#       - never
-
-#   - name: testing 2
-#     ansible.builtin.debug:
-#       msg: "Prueba: {{ public_interface }} with network: {{ item.value.id }}/{{ item.value.preffix }}"
-#     with_items: '{{ private_networks | dict2items }}' 
-
-#   - name: testing 3
-#     ansible.builtin.debug:
-#       msg: "Prueba: {{ hostvars[inventory_hostname]['ansible_' ~ public_interface]['ipv4']['address'] }}:{{ item.key }} => {{ item.value }}:{{ item.key }}"
-#     with_items: '{{ snat_tcp | dict2items }}' 
-
-#   - name: testing 4
-#     ansible.builtin.debug:
-#       msg: "Prueba: {{ hostvars[inventory_hostname]['"
-#     with_items: '{{ forward | dict2items }}'
-
-#   - name: output private network key
-#     ansible.builtin.debug:
-#       var: '{{ private_networks["dmz_network"]["id"] }}'
 
   roles:
-    - name: iptables
+    - name: firewall
       become: yes
-      tags:
-        - never
 
 - hosts: app
   roles:

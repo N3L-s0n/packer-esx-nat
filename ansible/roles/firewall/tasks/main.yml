@@ -1,10 +1,67 @@
 ---
 # tasks file for firewall
+
+- name: Add Interfaces to networks list
+  ansible.builtin.set_fact:
+    fnetworks : '{{ fnetworks | default([]) + [ item[0] | combine ( { "interface" : item[1] } ) ] }}'
+  with_nested: 
+    - '{{ networks }}'
+    - '{{ ansible_interfaces }}'
+  when: 
+    "item[0].ipv4 == hostvars[inventory_hostname]['ansible_' ~ item[1]]['ipv4']['network']"
+
 - name: Filter table
   block:
-    - name: Accept rules for TCP
+    - name: Forward rules for TCP
+      ansible.builtin.iptables:
+        table: filter
+        chain: FORWARD
+        protocol: tcp
+        in_interface: '{{ network[0].interface }}'
+        source: '{{ src }}'
+        destination_port: '{{ item[1].dest_port }}'
+        destination: '{{ dest }}'
+        syn: match
+        ctstate: NEW
+        jump: ACCEPT
 
+      vars:
+        query: "[?name==`{{ item[1].src_network }}`]"
+        network: "{{ fnetworks | community.general.json_query(query) }}"
 
+        src: "{{ '0.0.0.0/0' if item[1].src_addr == 'any' else 
+                 network[0].ipv4 ~ '/' ~ network[0].prefix  if item[1].src_addr == 'network' 
+                 else item[1].src_addr }}"
+
+        dest: "{{ '0.0.0.0/0' if item[1].dest_addr == 'any' else
+                  item[0].ipv4 ~ '/' ~ item[0].prefix if item[1].dest_addr == 'network' 
+                  else item[1].dest_addr }}"
+
+      loop: '{{ fnetworks | subelements( "forward_from", skip_missing=True ) }}'
+      loop_control: 
+        label: ' {{ item[0].name }} ALLOW {{ item[1].dest_port }}'
+
+    - name: Forward new packets on UDP port 53 (DNS)
+      ansible.builtin.iptables:
+        chain: FORWARD
+        protocol: udp
+        destination_port: 53
+        ctstate: NEW
+        jump: ACCEPT
+      tags:
+        - dns
+
+    - name: Forward ICMP request
+      ansible.builtin.iptables:
+        chain: FORWARD
+        protocol: icmp
+        icmp_type: echo-request
+        jump: ACCEPT
+      tags:
+        - icmp
+  tags:
+    - forward
+  notify: save iptables
 
 - name: DNAT rules
   block:
@@ -14,14 +71,16 @@
         chain: PREROUTING
         protocol: tcp
         match: tcp
-        destination_port: '{{ item.key }}'
-        in_interface: '{{ public_interface }}'
+        destination_port: '{{ item[1].key }}'
+        in_interface: '{{ item[0].interface }}'
         jump: DNAT
-        to_destination: '{{ item.value }}'
-        to_port: '{{ item.key }}'
-      with_items: '{{ dnat_tcp | dict2items }}'
+        to_destination: '{{ item[1].value }}'
+      with_nested: 
+        - '{{ fnetworks | community.general.json_query("[?type==`public`]") }}'
+        - '{{ dnat_tcp | dict2items }}'
   tags:
     - dnat
+  notify: save iptables
 
 - name: SNAT rules
   block:
@@ -29,9 +88,21 @@
       ansible.builtin.iptables:
         table: nat
         chain: POSTROUTING
-        source: '{{ item.value.id }}/{{ item.value.preffix }}'
-        out_interface: '{{ public_interface }}'
+        source: '{{ item[1].ipv4 }}/{{ item[1].prefix }}'
+        out_interface: '{{ item[0].interface }}'
         jump: MASQUERADE
-      with_items: '{{ private_networks | dict2items }}'
+      with_nested: 
+        - '{{ fnetworks | community.general.json_query("[?type==`public`]") }}'
+        - '{{ fnetworks | community.general.json_query("[?type==`private`]") }}'
   tags:
     - snat
+  notify: save iptables
+
+- name: Enable IPv4 forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
