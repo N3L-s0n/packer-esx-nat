@@ -23,41 +23,48 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
     ansible.extra_vars = {
 
-      "public" => {
-        "wan" => {
-          "network" => "192.168.56.0",
-          "prefix"  => "24"
-        }
+      "networks" => [{
+        "name" => "wan",
+        "type" => "public",
+        "ipv4" => "192.168.0.0",
+        "prefix"  => "24",
+
+        "forward_from" => [
+          { "src_network" => "dmz", "src_addr" => "network", "src_port" => "any", "dest_addr" => "any", "dest_port" => "80"},
+          { "src_network" => "dmz", "src_addr" => "network", "src_port" => "any", "dest_addr" => "any", "dest_port" => "443"},
+          { "src_network" => "dmz", "src_addr" => "network", "src_port" => "any", "dest_addr" => "any", "dest_port" => "25"},
+          { "src_network" => "dmz", "src_addr" => "network", "src_port" => "any", "dest_addr" => "any", "dest_port" => "587"},
+          { "src_network" => "dmz", "src_addr" => "network", "src_port" => "any", "dest_addr" => "any", "dest_port" => "995"},
+        ]
+      },
+      {
+        "name" => "dmz",
+        "type" => "private",
+        "ipv4" => "192.168.2.0",
+        "prefix"  => "24",
+
+        "forward_from" => [
+          { "src_network" => "wan", "src_addr" => "any", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "80"},
+          { "src_network" => "wan", "src_addr" => "any", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "443"},
+          { "src_network" => "wan", "src_addr" => "any", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "25"},
+          { "src_network" => "wan", "src_addr" => "any", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "587"},
+          { "src_network" => "wan", "src_addr" => "any", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "995"},
+
+          { "src_network" => "lan", "src_addr" => "network", "src_port" => "any", "dest_addr" => "network", "dest_port" => "80"},
+          { "src_network" => "lan", "src_addr" => "network", "src_port" => "any", "dest_addr" => "network", "dest_port" => "443"},
+          { "src_network" => "lan", "src_addr" => "network", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "25"},
+          { "src_network" => "lan", "src_addr" => "network", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "587"},
+          { "src_network" => "lan", "src_addr" => "network", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "995"},
+          { "src_network" => "lan", "src_addr" => "192.168.3.11", "src_port" => "any", "dest_addr" => "192.168.2.11", "dest_port" => "3306"}
+        ]
       },
 
-      "private" => {
-
-        "dmz" => {
-          "network" => "192.168.2.0",
-          "prefix"  => "24",
-
-          "forward_from" => {
-
-            "allow" => {
-              "public.wan" => {
-                "any:any" => ["any:80", "any:443", "192.168.2.11:25", "192.168.2.11:443", "192.168.2.11:587"]
-              },
-              "lan" => {
-                "192.168.3.11:any" => ["192.168.2.11:3306"]
-            }},
-
-            "deny" => {
-              "public" => {
-                "any:any" => ["any:3306"]
-            }}
-          }
-        },
-
-        "lan" => {
-          "network" => "192.168.3.0",
-          "prefix"  => "24"
-        }
-      },
+      {
+        "name" => "lan",
+        "type" => "private",
+        "ipv4" => "192.168.3.0",
+        "prefix"  => "24",
+      }],
 
       "dnat_tcp" => {
         "25"  => "192.168.2.11", # SMTP
@@ -73,7 +80,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "firewall" do |firewall|
     firewall.vm.hostname = "test-firewall.dev"
     #firewall.vm.cloud_init content_type: "text/cloud-config", path: "../terraform/firewall.cfg"
-    firewall.vm.network "private_network", ip: "192.168.56.1"  # WAN: Host-Only
+    firewall.vm.network "public_network", ip: "192.168.0.101"  # WAN: Bridge
 
     firewall.vm.network "private_network", ip: "192.168.2.1",  # DMZ: Internal Network
       virtualbox__intnet: "dmz"
@@ -88,6 +95,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       virtualbox__intnet: "dmz"
 
     $add_routes = <<-'SCRIPT'
+      sudo ip route add 192.168.0.0/24 via 192.168.2.1 dev enp0s8
       sudo ip route add 192.168.2.0/24 via 192.168.2.1 dev enp0s8
       sudo ip route add 192.168.3.0/24 via 192.168.2.1 dev enp0s8
     SCRIPT
@@ -103,8 +111,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       virtualbox__intnet: "lan"
 
     $add_routes = <<-'SCRIPT'
-      sudo ip route add 192.168.3.0/24 via 192.168.3.1 dev enp0s8
+      sudo ip route add 192.168.0.0/24 via 192.168.3.1 dev enp0s8
       sudo ip route add 192.168.2.0/24 via 192.168.3.1 dev enp0s8
+      sudo ip route add 192.168.3.0/24 via 192.168.3.1 dev enp0s8
     SCRIPT
 
     db.vm.provision "shell",
