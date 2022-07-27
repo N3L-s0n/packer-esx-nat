@@ -4,18 +4,18 @@ resource "esxi_guest" "firewall" {
     guest_name  = "firewall"
     disk_store  = var.esxi_datastore
 
-    ovf_source  = "../output-pfsense/centos7.vmx"
+    ovf_source  = "../output-esxi/centos7.vmx"
 
     network_interfaces {
-        virtual_network = esxi_vswitch.wan.name
+        virtual_network = esxi_portgroup.wan.name
     }
 
     network_interfaces {
-        virtual_network = esxi_vswitch.dmz.name
+        virtual_network = esxi_portgroup.dmz.name
     }
 
     network_interfaces {
-        virtual_network = esxi_vswitch.lan.name
+        virtual_network = esxi_portgroup.lan.name
     }
 
     guestinfo = {
@@ -27,10 +27,10 @@ resource "esxi_guest" "firewall" {
         inline = ["sudo yum update -y"]
 
         connection {
-            host        = vm.private_ip_address
+            host        = self.ip_address
             type        = "ssh"
             user        = var.node_user
-            password    = var.node_password
+            agent       = true
         }
     }
 
@@ -39,3 +39,28 @@ resource "esxi_guest" "firewall" {
 #   }
 }
 # ========================================================
+
+# APP DMZ ================================================
+resource "esxi_guest" "app" {
+
+    guest_name  = "app"
+    disk_store  = var.esxi_datastore
+
+    ovf_source  = "../output-esxi/centos7.vmx"
+
+    network_interfaces {
+        virtual_network = esxi_portgroup.dmz.name
+    }
+
+    guestinfo = {
+        "metadata" = base64gzip(file("app.cfg"))
+        "metadata.encoding" = "gzip+base64"
+    }
+}
+# ========================================================
+
+output "instance_ip_addr" { 
+    value = tomap({
+        for name, vm in esxi_guest : name => vm.ip_address
+    })
+}
