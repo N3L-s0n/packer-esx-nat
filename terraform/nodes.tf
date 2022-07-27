@@ -58,9 +58,3 @@ resource "esxi_guest" "app" {
     }
 }
 # ========================================================
-
-output "instance_ip_addr" { 
-    value = tomap({
-        for name, vm in esxi_guest : name => vm.ip_address
-    })
-}
