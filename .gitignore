@@ -22,3 +22,5 @@ variables.tf
 
 *.vagrant
 temp
+
+*.log
