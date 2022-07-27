@@ -1,0 +1,9 @@
+remote {{ vpn_remote_ipv4 }}
+dev tun
+ifconfig {{ vpn_client_ipv4 }} {{ vpn_server_ipv4 }}
+
+{% for route in vpn_routes %}
+route {{ route.ipv4 }} {{ route.netmask }}
+{% endfor %}
+
+secret static.key

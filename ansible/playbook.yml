@@ -5,11 +5,41 @@
   roles:
     - name: firewall
       become: yes
+    - name: vpn
+      become: yes
 
 - hosts: app
   roles:
     - name: httpd
       become: yes
+
+  post_tasks:
+    - name: Open ports SMTP, POP3, POP3s, MySQL
+      ansible.builtin.iptables:
+        table: filter
+        chain: INPUT
+        protocol: tcp
+        destination_port: '{{ item }}'
+        ctstate: NEW
+        syn: match
+        jump: ACCEPT
+      with_items: [ '25', '587', '995', '3306' ]
+      become: yes
+      notify: "iptables handler"
+
+  handlers:
+    - name: save iptables
+      ansible.builtin.command:
+        cmd: service iptables save
+      become: yes
+      listen: "iptables handler"
+
+    - name: restart iptables
+      ansible.builtin.service:
+        name: iptables
+        state: restarted
+      become: yes
+      listen: "iptables handler"
 
 - hosts: db
   roles:

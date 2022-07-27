@@ -1,2 +1,12 @@
 ---
 # handlers file for vpn
+- name: save iptables
+  ansible.builtin.command:
+    cmd: service iptables save
+  become: yes
+
+- name: restart iptables
+  ansible.builtin.service:
+    name: iptables
+    state: restarted
+  become: yes

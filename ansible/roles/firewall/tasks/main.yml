@@ -18,6 +18,7 @@
         chain: FORWARD
         protocol: tcp
         in_interface: '{{ network[0].interface }}'
+        out_interface: '{{ item[0].interface }}'
         source: '{{ src }}'
         destination_port: '{{ item[1].dest_port }}'
         destination: '{{ dest }}'
