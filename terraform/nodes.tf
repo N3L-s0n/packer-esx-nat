@@ -19,7 +19,7 @@ resource "esxi_guest" "firewall" {
     }
 
     guestinfo = {
-        "metadata" = base64gzip(file("firewall.cfg"))
+        "metadata" = base64gzip(file("cloud-init/firewall.cfg"))
         "metadata.encoding" = "gzip+base64"
     }
 
@@ -53,7 +53,65 @@ resource "esxi_guest" "app" {
     }
 
     guestinfo = {
-        "metadata" = base64gzip(file("app.cfg"))
+        "metadata" = base64gzip(file("cloud-init/app.cfg"))
+        "metadata.encoding" = "gzip+base64"
+    }
+}
+# ========================================================
+
+
+# DB LAN =================================================
+resource "esxi_guest" "db" {
+
+    guest_name  = "db"
+    disk_store  = var.esxi_datastore
+
+    ovf_source  = "../output-esxi/centos7.vmx"
+
+    network_interfaces {
+        virtual_network = esxi_portgroup.lan.name
+    }
+
+    guestinfo = {
+        "metadata" = base64gzip(file("cloud-init/db.cfg"))
+        "metadata.encoding" = "gzip+base64"
+    }
+}
+# ========================================================
+
+# PROXY LAN ==============================================
+resource "esxi_guest" "proxy" {
+
+    guest_name  = "proxy"
+    disk_store  = var.esxi_datastore
+
+    ovf_source  = "../output-esxi/centos7.vmx"
+
+    network_interfaces {
+        virtual_network = esxi_portgroup.lan.name
+    }
+
+    guestinfo = {
+        "metadata" = base64gzip(file("cloud-init/proxy.cfg"))
+        "metadata.encoding" = "gzip+base64"
+    }
+}
+# ========================================================
+
+# ADMIN LAN ==============================================
+resource "esxi_guest" "admin" {
+
+    guest_name  = "admin"
+    disk_store  = var.esxi_datastore
+
+    ovf_source  = "../output-esxi/centos7.vmx"
+
+    network_interfaces {
+        virtual_network = esxi_portgroup.lan.name
+    }
+
+    guestinfo = {
+        "metadata" = base64gzip(file("cloud-init/admin.cfg"))
         "metadata.encoding" = "gzip+base64"
     }
 }

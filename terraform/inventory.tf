@@ -10,7 +10,6 @@ data "template_file" "ansible_firewall_host" {
     }
 }
 
-
 data "template_file" "ansible_app_host" {
 
     template = file("${path.root}/templates/ansible_hosts.tpl") 
@@ -20,6 +19,42 @@ data "template_file" "ansible_app_host" {
         node_name       = esxi_guest.app.guest_name
         ansible_user    = var.node_user
         ip              = esxi_guest.app.ip_address
+    }
+}
+
+data "template_file" "ansible_db_host" {
+
+    template = file("${path.root}/templates/ansible_hosts.tpl") 
+    depends_on = [esxi_guest.db]
+    
+    vars = {
+        node_name       = esxi_guest.db.guest_name
+        ansible_user    = var.node_user
+        ip              = esxi_guest.db.ip_address
+    }
+}
+
+data "template_file" "ansible_proxy_host" {
+
+    template = file("${path.root}/templates/ansible_hosts.tpl") 
+    depends_on = [esxi_guest.proxy]
+    
+    vars = {
+        node_name       = esxi_guest.proxy.guest_name
+        ansible_user    = var.node_user
+        ip              = esxi_guest.proxy.ip_address
+    }
+}
+
+data "template_file" "ansible_admin_host" {
+
+    template = file("${path.root}/templates/ansible_hosts.tpl") 
+    depends_on = [esxi_guest.admin]
+    
+    vars = {
+        node_name       = esxi_guest.admin.guest_name
+        ansible_user    = var.node_user
+        ip              = esxi_guest.admin.ip_address
     }
 }
 
@@ -46,6 +81,9 @@ data "template_file" "variables_skeleton" {
         
         firewall_addr   = esxi_guest.firewall.ip_address
         app_addr        = esxi_guest.app.ip_address
+        db_addr         = esxi_guest.db.ip_address
+        proxy_addr      = esxi_guest.proxy.ip_address
+        admin_addr      = esxi_guest.admin.ip_address
     }
 }
 
