@@ -66,6 +66,9 @@ data "template_file" "ansible_skeleton" {
     vars = {
         firewall_host_def   = data.template_file.ansible_firewall_host.rendered
         app_host_def        = data.template_file.ansible_app_host.rendered
+        db_host_def         = data.template_file.ansible_db_host.rendered
+        proxy_host_def      = data.template_file.ansible_proxy_host.rendered
+        admin_host_def      = data.template_file.ansible_admin_host.rendered
     }
 }
 
