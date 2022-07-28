@@ -1,0 +1,17 @@
+vrrp_instance {{ ansible_hostname }} {
+    state MASTER
+    interface {{ ansible_interfaces | last }}
+    virtual_router_id 50
+
+    priority {{ ka_priority }}
+
+    authentication {
+        
+        auth_type PASS
+        auth_pass {{ ka_password }}
+    }
+
+    virtual_ipaddress {
+        {{ ka_virtual_ipv4 }}
+    }
+}
