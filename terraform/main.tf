@@ -14,10 +14,10 @@ provider "esxi" {
     esxi_password   = var.esxi_password
 }
 
-# NETWORK: NAC 172.24.5.x ================================
+# NETWORK: NAC 172.24.5.224-227 /24 ======================
 resource "esxi_vswitch" "nac" {
 
-    name = "NAC"
+    name = "vSwitchNAC"
     uplink {
         name = "vmnic2"
     }
@@ -31,10 +31,10 @@ resource "esxi_portgroup" "nac" {
 # ========================================================
 
 
-# NETWORK: WAN 172.24.133.x ==============================
+# NETWORK: WAN 172.24.133.224-227 /24 ====================
 resource "esxi_vswitch" "wan" {
 
-    name = "WAN"
+    name = "vSwitch2"
     uplink {
         name = "vmnic3"
     }
@@ -42,130 +42,35 @@ resource "esxi_vswitch" "wan" {
 
 resource "esxi_portgroup" "wan" {
 
-    name = "WAN"
+    name = "Production_Network"
     vswitch = esxi_vswitch.wan.name
 }
 # ========================================================
 
 
-# NETWORK: LAN ===========================================
+# NETWORK: DMZ 192.168.224.0 /24 =========================
+resource "esxi_vswitch" "dmz" {
+
+    name = "vSwitchDMZ"
+}
+
+resource "esxi_portgroup" "dmz" {
+
+    name = "DMZ"
+    vswitch = esxi_vswitch.dmz.name
+}
+# ========================================================
+
+
+# NETWORK: LAN 192.168.225.0 /24 =========================
 resource "esxi_vswitch" "lan" {
 
-    name = "LAN"
+    name = "vSwitchLAN"
 }
 
 resource "esxi_portgroup" "lan" {
 
     name = "LAN"
     vswitch = esxi_vswitch.lan.name
-}
-# ========================================================
-
-
-
-# FIREWALL: PFSENSE ======================================
-resource "esxi_guest" "firewall" {
-
-    guest_name  = "firewall"
-    disk_store  = "vmstorage"
-
-    ovf_source  = "../output-pfsense/pfsense.vmx"
-
-    network_interfaces {
-        virtual_network = esxi_vswitch.wan.name
-    }
-
-    network_interfaces {
-        virtual_network = esxi_vswitch.lan.name
-    }
-
-    network_interfaces {
-        virtual_network = esxi_vswitch.nac.name
-    }
-
-    provisioner "remote-exec" {
-        inline = ["pkg update"]
-
-        connection {
-            host        = var.pfsense_ip
-            type        = "ssh"
-            user        = var.pfsense_user
-            password    = var.pfsense_pass
-        }
-    }
-
-    provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip},' --extra-vars 'ansible_user=${var.pfsense_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/pfsense/main.yml"
-    }
-}
-# ========================================================
-
-
-# SERVER: DB =============================================
-resource "esxi_guest" "db" {
-
-    guest_name      = "db"
-    disk_store      = "vmstorage"
-
-    ovf_source      = "../output-centos/centos7.vmx"
-
-    network_interfaces {
-        virtual_network = esxi_vswitch.lan.name
-    }
-
-    guestinfo = {
-        "metadata" = base64gzip(file("db-network.cfg"))
-        "metadata.encoding" = "gzip+base64"
-    }
-
-    provisioner "remote-exec" {
-        inline = ["sudo yum update -y"]
-
-        connection {
-            host        = var.pfsense_ip
-            port        = var.db_dnat_port
-            type        = "ssh"
-            user        = var.server_user
-        }
-    }
-
-    provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.db_dnat_port},' --extra-vars 'ansible_user=${var.server_user} }' ../ansible/playbooks/db/main.yml"
-    }
-}
-# ========================================================
-
-
-# SERVER: APP ============================================
-resource "esxi_guest" "app" {
-
-    guest_name      = "app"
-    disk_store      = "vmstorage"
-
-    ovf_source      = "../output-centos/centos7.vmx"
-
-    network_interfaces {
-        virtual_network = esxi_vswitch.lan.name
-    }
-
-    guestinfo = {
-        "metadata" = base64gzip(file("app-network.cfg"))
-        "metadata.encoding" = "gzip+base64"
-    }
-
-    provisioner "remote-exec" {
-        inline = ["sudo yum update -y"]
-
-        connection {
-            host        = var.pfsense_ip
-            port        = var.app_dnat_port
-            type        = "ssh"
-            user        = var.server_user
-        }
-    }
-
-    provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip}:${var.app_dnat_port},' --extra-vars 'ansible_user=${var.server_user} ' ../ansible/playbooks/www/main.yml"
-    }
 }
 # ========================================================

@@ -16,11 +16,15 @@
       name: httpd
       state: started
 
-  - name: Open port HTTP port
-    ansible.builtin.firewalld:
-      service: http
-      permanent: true
-      state: enabled
-    notify: restart firewalld
-
-  become: yes
+  - name: Open HTTP and HTTPS ports
+    ansible.builtin.iptables:
+      chain: INPUT
+      protocol: tcp
+      destination_port: '{{ item }}'
+      ctstate: NEW
+      syn: match
+      jump: ACCEPT
+    with_items: [ 80, 443 ]
+    notify: 
+      - save iptables
+      - restart iptables

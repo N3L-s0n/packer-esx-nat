@@ -1,0 +1,95 @@
+---
+# tasks file for vpn
+
+- name: Install openvpn
+  ansible.builtin.yum:
+    name: openvpn
+    state: latest
+
+- name: Create client OpenVPN dir
+  ansible.builtin.file:
+    path: '~/vpnclient'
+    state: directory
+    mode: '0755'
+  delegate_to: 127.0.0.1
+  become: no
+
+- name: Generate a static key
+  ansible.builtin.command:
+    cmd: 'openvpn --genkey --secret ~/vpnclient/static.key'
+    creates: ~/vpnclient/static.key
+  delegate_to: 127.0.0.1
+  become: no
+
+- name: Copy generated static key
+  ansible.builtin.copy:
+    src: ~/vpnclient/static.key
+    dest:  /etc/openvpn/server/static.key
+  become: yes
+
+- name: Copy client configuration file
+  ansible.builtin.template:
+    src: client.conf.j2
+    dest: ~/vpnclient/client.conf
+  delegate_to: 127.0.0.1
+  become: no
+
+- name: Copy server configuration file
+  ansible.builtin.template:
+    src: server.conf.j2
+    dest: /etc/openvpn/server/server.conf
+
+- name: Accept VPN UDP datagrams on port 1194
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: 1194
+    ctstate: NEW
+    jump: ACCEPT
+  notify:
+    - save iptables
+    - restart iptables
+
+- name: Allow Forward tun interface
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: tun+
+    jump: ACCEPT
+  notify:
+    - save iptables
+    - restart iptables
+
+- name: Allow Output tun interface
+  ansible.builtin.iptables:
+    chain: OUTPUT
+    out_interface: tun+
+    jump: ACCEPT
+  notify:
+    - save iptables
+    - restart iptables
+
+- name: SNAT vpn source address
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: '10.0.0.0/24'
+    jump: MASQUERADE
+  notify:
+    - save iptables
+    - restart iptables
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Execute openvpn server
+  ansible.builtin.shell:
+    chdir: "/etc/openvpn/server"
+    cmd: "(sudo -b openvpn server.conf)"
+  become: yes
+
+- name: Execute openvpn client
+  ansible.builtin.shell:
+    chdir: "~/vpnclient"
+    cmd: "(sudo -b openvpn client.conf)"
+  delegate_to: 127.0.0.1
+  become: no
