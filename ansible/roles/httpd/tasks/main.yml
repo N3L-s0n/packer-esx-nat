@@ -1,111 +1,207 @@
 ---
 # tasks file for httpd
-- block:
+#
+- name: Install Apache HTTP 2.4.54
+  block:
+    - name: Install dependencies
+      ansible.builtin.yum:
+        name: '{{ item }}'
+        state: latest
+      with_items:
+        - '@Development Tools'
+        - expat-devel
+        - pcre
+        - pcre-devel
+        - openssl-devel
 
-  - name: Daemon reload
-    ansible.builtin.systemd:
-      daemon_reload: yes
+    - name: Download Apache HTTP tar files
+      ansible.builtin.get_url:
+        url: '{{ item.url }}'
+        checksum: '{{ item.checksum }}'
+        dest: '{{ item.dest }}'
+      with_items:
+        - url: https://dlcdn.apache.org/httpd/httpd-2.4.54.tar.gz
+          checksum: 'sha256:c687b99c446c0ef345e7d86c21a8e15fc074b7d5152c4fe22b0463e2be346ffb'
+          dest: '~/httpd-2.4.54.tar.gz'
+        - url: https://dlcdn.apache.org//apr/apr-1.7.0.tar.gz
+          checksum: 'sha256:48e9dbf45ae3fdc7b491259ffb6ccf7d63049ffacbc1c0977cced095e4c2d5a2'
+          dest: '~/apr-1.7.0.tar.gz'
+        - url: https://dlcdn.apache.org//apr/apr-util-1.6.1.tar.gz
+          checksum: 'sha256:b65e40713da57d004123b6319828be7f1273fbc6490e145874ee1177e112c459'
+          dest: '~/apr-util-1.6.1.tar.gz'
 
-  - name: Install apache packages
-    ansible.builtin.yum:
-      name: httpd
-      state: present
+    - name: Unarchive HTTP tar files
+      ansible.builtin.unarchive:
+        src: '{{ item.src }}'
+        dest: '~'
+        remote_src: yes
+      with_items:
+        - src: '~/httpd-2.4.54.tar.gz'
+        - src: '~/apr-1.7.0.tar.gz'
+        - src: '~/apr-util-1.6.1.tar.gz'
 
-  - name: Ensure httpd is running
-    ansible.builtin.service:
-      name: httpd
-      state: started
+    - name: Copy APR dir to httpd location
+      ansible.builtin.command:
+        cmd: 'mv ~/apr-1.7.0 ~/httpd-2.4.54/srclib/apr'
+        creates: '~/httpd-2.4.54/srclib/apr'
 
-  - name: Open HTTP and HTTPS ports
-    ansible.builtin.iptables:
-      chain: INPUT
-      protocol: tcp
-      destination_port: '{{ item }}'
-      ctstate: NEW
-      syn: match
-      jump: ACCEPT
-    with_items: [ 80, 443 ]
-    notify: 
-      - save iptables
-      - restart iptables
+    - name: Copy APR-util dir to httpd location
+      ansible.builtin.command:
+        cmd: 'mv ~/apr-util-1.6.1 ~/httpd-2.4.54/srclib/apr-util'
+        creates: '~/httpd-2.4.54/srclib/apr-util'
+        
+    - name: Install HTTPD
+      ansible.builtin.command:
+        chdir: '~/httpd-2.4.54'
+        cmd: '{{ item }}'
+        creates: '/usr/local/apache'
+      with_items:
+          - './buildconf'
+          - './configure --enable-ssl --enable-so --with-mpm=event --with-included-apr --prefix=/usr/local/apache'
+          - 'make'
+          - 'make install'
 
-  - name: Install PHP Remi Repository
-    yum:
-      name: https://rpms.remirepo.net/enterprise/remi-release-7.rpm
-      update_cache: yes
-      state: latest
+    - name: Copy httpd.service file
+      ansible.builtin.copy:
+        src: 'httpd.service'
+        dest: '/etc/systemd/system/httpd.service'
+        mode: '0755'
 
-  - name: Install PHP
-    yum: name={{ item }} state=latest enablerepo="remi,remi-php80"
-    with_items:
-      - php
-      - php-mysql
-      - php-gd
-    notify: restart apache
+    - name: Daemon reload
+      ansible.builtin.systemd:
+        daemon_reload: yes
 
-  - name: Create HOST directory
-    file:
-      path: "/var/www/{{ http_host }}"
-      state: directory
-      owner: packer
-      group: packer
-      mode: '0755'
+    - name: Enable httpd
+      ansible.builtin.service:
+        name: httpd
+        enabled: yes
 
+    - name: Ensure httpd is running
+      ansible.builtin.service:
+        name: httpd
+        state: started
+
+    - name: Open HTTP and HTTPS ports
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: '{{ item }}'
+        ctstate: NEW
+        syn: match
+        jump: ACCEPT
+      with_items: [ 80, 443 ]
+      notify: 
+        - save iptables
+        - restart iptables
+
+    - name: Allow output to MySQL port
+      ansible.builtin.iptables:
+        chain: OUTPUT
+        protocol: tcp
+        destination_port: 3306
+        ctstate: NEW
+        syn: match
+        jump: ACCEPT
+      notify: 
+        - save iptables
+        - restart iptables
+
+    - name: Install PHP Remi Repository
+      yum:
+        name: https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+        update_cache: yes
+        state: latest
+
+    - name: Install PHP
+      yum: name={{ item }} state=latest enablerepo="remi,remi-php80"
+      with_items:
+        - php
+        - php-mysql
+        - php-gd
+      notify: restart httpd
   tags:
     - setup apache
 
-- block:
-  - name: Set Apache VirtualHost
-    template:
-      src: "httpd.conf.j2"
-      dest: "/etc/httpd/conf.d/{{ http_conf }}"
-      owner: root
-      group: root
-      mode: u=rw,g=r,o=r
+- name: Setup WordPress
+  block:
+    - name: Set Apache VirtualHost
+      template:
+        src: "httpd.conf.j2"
+        dest: "/usr/local/apache/conf/extra/httpd-vhosts.conf"
+        owner: root
+        group: root
+        mode: u=rw,g=r,o=r
 
-  - name: Set an apache user for administration folder
-    command: htpasswd -cb /etc/httpd/.htpasswd {{ wp_user }} {{ wp_password }}
+    - name: Include VirtualHost in httpd configuration file
+      ansible.builtin.replace:
+        path: /usr/local/apache/conf/httpd.conf
+        regexp: '#Include conf/extra/httpd-vhosts.conf'
+        replace: 'Include conf/extra/httpd-vhosts.conf'
 
-  - name: Download and unpack latest WordPress
-    unarchive:
-      src: http://wordpress.org/latest.tar.gz
-      dest: "/var/www/{{ http_host }}"
-      remote_src: yes
-      creates: "/var/www/{{ http_host }}/wordpress"
+    - name: Change DocumentRoot to /var/www/html
+      ansible.builtin.replace:
+        path: /usr/local/apache/conf/httpd.conf
+        regexp: 'DocumentRoot "/usr/local/apache/htdocs"'
+        replace: 'DocumentRoot "/var/www/html"'
 
-  - name: Copy WordPress sample config file
-    command: mv /var/www/{{ http_host }}/wordpress/wp-config-sample.php /var/www/{{ http_host }}/wordpress/wp-config.php creates=/var/www/{{ http_host }}/wordpress/wp-config.php
-    notify: restart apache
+    - name: Change Default directory to /var/www
+      ansible.builtin.replace:
+        path: /usr/local/apache/conf/httpd.conf
+        regexp: '<Directory "/usr/local/apache/htdocs">'
+        replace: '<Directory "/var/www">'
 
-  - name: Update WordPress config file with database
-    lineinfile:
-      path: "/var/www/{{ http_host }}/wordpress/wp-config.php"
-      regexp: "{{ item.regexp }}"
-      line: "{{ item.line }}"
-    with_items:
-      - {'regexp': "define\\( 'DB_NAME', '(.)+' \\);", 'line': "define( 'DB_NAME', '{{db_name}}' );"}
-      - {'regexp': "define\\( 'DB_USER', '(.)+' \\);", 'line': "define( 'DB_USER', '{{db_user}}' );"}
-      - {'regexp': "define\\( 'DB_PASSWORD', '(.)+' \\);", 'line': "define( 'DB_PASSWORD', '{{db_password}}' );"}
-      - {'regexp': "define\\( 'DB_HOST', '(.)+' \\);", 'line': "define( 'DB_HOST', '{{db_host}}' );"}
-    notify: restart apache
+    - name: Set an apache user for administration folder
+      command: htpasswd -cb /etc/httpd/.htpasswd {{ wp_user }} {{ wp_password }}
 
+    - name: Create HOST directory
+      file:
+        path: "/var/www/{{ http_host }}"
+        state: directory
+        owner: packer
+        group: packer
+        mode: '0755'
+
+    - name: Download and unpack latest WordPress
+      unarchive:
+        src: http://wordpress.org/latest.tar.gz
+        dest: "/var/www/{{ http_host }}"
+        remote_src: yes
+        creates: "/var/www/{{ http_host }}/wordpress"
+
+    - name: Copy WordPress sample config file
+      command: mv /var/www/{{ http_host }}/wordpress/wp-config-sample.php /var/www/{{ http_host }}/wordpress/wp-config.php creates=/var/www/{{ http_host }}/wordpress/wp-config.php
+      notify: restart httpd
+
+    - name: Update WordPress config file with database
+      lineinfile:
+        path: "/var/www/{{ http_host }}/wordpress/wp-config.php"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - {'regexp': "define\\( 'DB_NAME', '(.)+' \\);", 'line': "define( 'DB_NAME', '{{db_name}}' );"}
+        - {'regexp': "define\\( 'DB_USER', '(.)+' \\);", 'line': "define( 'DB_USER', '{{db_user}}' );"}
+        - {'regexp': "define\\( 'DB_PASSWORD', '(.)+' \\);", 'line': "define( 'DB_PASSWORD', '{{db_password}}' );"}
+        - {'regexp': "define\\( 'DB_HOST', '(.)+' \\);", 'line': "define( 'DB_HOST', '{{host}}' );"}
+      vars:
+        database: '{{ groups["databases"] | first }}'
+        host: "{{ hostvars[database]['ansible_facts'][ hostvars[database]['ansible_interfaces'] | last ]['ipv4']['address']}}"
+      notify: restart httpd
   tags:
     - setup wordpress
 
-- block:
+- name: SELinux conf
+  block:
+    - name: Enable SELinux
+      selinux:
+        policy: targeted
+        state: enforcing
 
-  - name: Enable SELinux
-    selinux:
-      policy: targeted
-      state: enforcing
+    - name: Httpd can connect db
+      command: setsebool -P httpd_can_network_connect_db 1
+      notify: restart httpd
 
-  - name: Httpd can connect db
-    command: setsebool -P httpd_can_network_connect_db 1
-    notify: restart apache
-
-  - name: Httpd can network connect
-    command: setsebool -P httpd_can_network_connect 1
-    notify: restart apache
-
+    - name: Httpd can network connect
+      command: setsebool -P httpd_can_network_connect 1
+      notify: restart httpd
   tags:
     - selinux conf

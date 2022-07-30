@@ -25,21 +25,30 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       "primary"   => { 
         "ka_priority" => "10",
         "ka_password" => "testing",
-        "ka_virtual_ipv4" => "192.168.0.10"
+        "ka_virtual_ipv4" => "192.168.1.10"
       },
       "secondary" => { 
-        "ka_priority" =>  "9" 
+        "ka_priority" =>  "9",
         "ka_password" => "testing",
-        "ka_virtual_ipv4" => "192.168.0.10"
+        "ka_virtual_ipv4" => "192.168.1.10"
       }
     }
 
     ansible.groups = {
       "loadbalancing" => ["primary", "secondary"],
-      "webservers" => ["app1", "app2"]
+      "webservers" => ["app1", "app2"],
+      "databases" => ["db1", "db2"]
     }
 
     ansible.extra_vars = {
+
+      "http_host" => "www.archipress.com",
+      "db_name" => "wordpress",
+      "db_user" => "wordpress",
+      "db_password" => "dev-password",
+
+      "wp_user" => "admin",
+      "wp_password" => "dev-password",
 
       "networks" => [{
         "name" => "wan",
@@ -147,9 +156,41 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
     $add_routes = <<-'SCRIPT'
       sudo ip route add 192.168.0.0/24 via 192.168.1.1 dev enp0s8
+      sudo ip route add 192.168.1.0/24 via 192.168.1.1 dev enp0s8
     SCRIPT
 
     app.vm.provision "shell",
       inline: $add_routes
   end
+
+  # DB 1 on LAN
+  config.vm.define "db1" do |db|
+    db.vm.hostname = "test-db1.dev"
+    db.vm.network "private_network", ip: "192.168.1.31", netmask: "255.255.255.0",  # LAN
+      virtualbox__intnet: "lan"
+
+    $add_routes = <<-'SCRIPT'
+      sudo ip route add 192.168.0.0/24 via 192.168.1.1 dev enp0s8
+      sudo ip route add 192.168.1.0/24 via 192.168.1.1 dev enp0s8
+    SCRIPT
+
+    db.vm.provision "shell",
+      inline: $add_routes
+  end
+
+  # DB 2 on LAN
+  config.vm.define "db2" do |db|
+    db.vm.hostname = "test-app2.dev"
+    db.vm.network "private_network", ip: "192.168.1.32", netmask: "255.255.255.0",  # LAN
+      virtualbox__intnet: "lan"
+
+    $add_routes = <<-'SCRIPT'
+      sudo ip route add 192.168.0.0/24 via 192.168.1.1 dev enp0s8
+      sudo ip route add 192.168.1.0/24 via 192.168.1.1 dev enp0s8
+    SCRIPT
+
+    db.vm.provision "shell",
+      inline: $add_routes
+  end
+
 end

@@ -51,6 +51,13 @@
         jump: ACCEPT
       tags:
         - dns
+          
+    - name: Forward Galera UDP port 4567
+      ansible.builtin.iptables:
+        chain: FORWARD
+        protocol: udp
+        destination_port: 4567
+        jump: ACCEPT
 
     - name: Forward ICMP request
       ansible.builtin.iptables:
@@ -60,6 +67,15 @@
         jump: ACCEPT
       tags:
         - icmp
+
+    - name: Allow all ICMP output
+      ansible.builtin.iptables:
+        chain: OUTPUT
+        protocol: icmp
+        jump: ACCEPT
+      tags:
+        - icmp
+
   tags:
     - forward
   notify: save iptables

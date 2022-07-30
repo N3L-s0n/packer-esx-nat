@@ -1,42 +1,179 @@
 ---
 # tasks file for mariadb
-- name: Open port 3306
+- name: Open port 3306, 4567, 4568, 4444 on TCP
   ansible.builtin.iptables:
-    chain: INPUT
+    chain: '{{ item[0] }}'
     protocol: tcp
-    destination_port: 3306
+    destination_port: '{{ item[1] }}'
     ctstate: NEW
     syn: match
     jump: ACCEPT
+  with_nested:
+    - [ 'INPUT', 'OUTPUT' ]
+    - [ 3306, 4567, 4568, 4444 ]
   notify: 
     - save iptables
     - restart iptables
 
+- name: Open port 4567 on UDP
+  ansible.builtin.iptables:
+    chain: '{{ item }}'
+    protocol: udp
+    destination_port: 4567
+    jump: ACCEPT
+  with_items:
+    - INPUT
+    - OUTPUT
+  notify: 
+    - save iptables
+    - restart iptables
+
+- name: Set MariaDB repo for version 10.3
+  ansible.builtin.copy:
+    src: 'MariaDB.repo'
+    dest: '/etc/yum.repos.d/MariaDB.repo'
+
 - name: Install MariaDB packages
   yum: name={{ item }} state=present
   with_items:
-    - mariadb-server
+    - rsync
+    - policycoreutils-python
+    - MariaDB-server
+    - MariaDB-client
     - MySQL-python
-- name: Ensure MariaDB is running
-  service:
+
+- name: Enable MariaDB
+  ansible.builtin.service:
+    name: mysql
+    enabled: yes
+
+- name: Start MariaDB
+  ansible.builtin.service:
     name: mariadb
     state: started
 
-- name: Create DB for WordPress
-  community.mysql.mysql_db:
-    name: "{{ db_name }}"
-    login_host: 'localhost'
-    login_user: 'root'
-    login_password: ''
-    state: present
+- name: Copy galera.conf file
+  ansible.builtin.template:
+    src: 'galera.conf.j2'
+    dest: '/etc/my.cnf.d/galera.cnf'
+    mode: '0644'
 
-- name: Create DB user
-  community.mysql.mysql_user:
-    name: "{{ db_user }}"
-    host: "{{ app_host }}"
-    password: "{{ db_password }}"
-    priv: "{{ db_name }}.*:ALL"
-    login_host: 'localhost'
-    login_user: 'root'
-    login_password: ''
-    state: present
+- name: SElinux Configuration
+  block:
+
+    - name: Enable ports on SELinux
+      ansible.builtin.command:
+        cmd: 'semanage port -a -t mysqld_port_t -p tcp {{ item }}'
+      with_items:
+        - 4567
+        - 4568
+        - 4444
+      ignore_errors: yes
+
+    - name: Enable udp port on SELinux
+      ansible.builtin.command:
+        cmd: 'semanage port -a -t mysqld_port_t -p udp 4567'
+      ignore_errors: yes
+
+    - name: SELinux mysqld_t permissive
+      ansible.builtin.command:
+        cmd: 'semanage permissive -a mysqld_t'
+      ignore_errors: yes
+
+    - name: Stop MariaDB
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+
+    - name: Run galera cluster for selinux
+      ansible.builtin.command:
+        cmd: galera_new_cluster
+      when: inventory_hostname == groups['databases'][0]
+
+    - name: Create DB for selinux
+      community.mysql.mysql_db:
+        name: "selinux"
+        login_host: "localhost"
+        login_user: "root"
+        login_password: ''
+        state: present
+      when: inventory_hostname == groups['databases'][0]
+
+    - name: Create table for selinux
+      community.mysql.mysql_query:
+        login_db: "selinux"
+        query:
+          - "CREATE TABLE selinux_policy (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(id))"
+          - "INSERT INTO selinux_policy VALUES ()"
+      when: inventory_hostname == groups['databases'][0]
+      tags:
+        - tables
+
+    - name: Start the other nodes
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+      when: inventory_hostname != groups['databases'][0]
+
+    - name: Do SELinux query on other nodes
+      community.mysql.mysql_query:
+        login_db: "selinux"
+        query:
+          - "INSERT INTO selinux.selinux_policy VALUES ()"
+      when: inventory_hostname != groups['databases'][0]
+
+    - name: Enable SELinux policy
+      ansible.builtin.shell:
+        cmd: '{{ item }}'
+      with_items:
+        - "grep mysql /var/log/audit/audit.log | sudo audit2allow -M Galera"
+        - "semodule -i Galera.pp"
+        - "semanage permissive -d mysqld_t"
+
+    - name: Stop Nodes other than the first one
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+      when: inventory_hostname != groups['databases'][0]
+
+    - name: Stop the first node
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+      when: inventory_hostname == groups['databases'][0]
+
+- name: Start galera cluster on first node
+  ansible.builtin.command:
+    cmd: galera_new_cluster
+  when: inventory_hostname == groups['databases'][0]
+
+- name: Start Nodes other than the first one
+  ansible.builtin.service:
+    name: mariadb
+    state: started
+  when: inventory_hostname != groups['databases'][0]
+
+- name: Setup wordpress db and user in first node
+  block:
+
+    - name: Create DB for WordPress
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        login_host: 'localhost'
+        login_user: 'root'
+        login_password: ''
+        state: present
+
+    - name: Create DB user
+      community.mysql.mysql_user:
+        name: "{{ db_user }}"
+        host: '{{ hostvars[item]["ansible_facts"][ hostvars[item]["ansible_interfaces"] | last ]["ipv4"]["address"]}}'
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}.*:ALL"
+        login_host: 'localhost'
+        login_user: 'root'
+        login_password: ''
+        state: present
+      with_items: '{{ groups["webservers"] }}'
+
+  when: inventory_hostname == groups['databases'][0]

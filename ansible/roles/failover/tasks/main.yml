@@ -1,2 +1,167 @@
 ---
 # tasks file for failover
+- name: Install HAProxy 2.6.2
+  block:
+    - name: Install dependencies and old HAProxy
+      ansible.builtin.yum:
+        name: '{{ item }}'
+        state: latest
+      with_items:
+        - gcc
+        - pcre-static
+        - pcre-devel
+        - systemd-devel
+        - openssl-devel
+
+    - name: Download HAProxy 2.6.2 tar file
+      ansible.builtin.get_url:
+        url: https://www.haproxy.org/download/2.6/src/haproxy-2.6.2.tar.gz
+        dest: '~/haproxy-2.6.2.tar.gz'
+
+    - name: Unarchive tar file
+      ansible.builtin.unarchive:
+        src: '~/haproxy-2.6.2.tar.gz'
+        dest: '~'
+        remote_src: yes
+
+    - name: Set Make variables and run
+      ansible.builtin.command:
+        chdir: '~/haproxy-2.6.2'
+        cmd: '{{ item }}'
+        creates: '/usr/local/sbin/haproxy'
+      with_items:
+        - 'make TARGET=linux-glibc USE_PCRE=1 USE_OPENSSL=1 USE_ZLIB=1 USE_CRYPT_H=1 USE_LIBCRYPT=1 USE_SYSTEMD=1'
+        - 'make install'
+
+    - name: Copy haproxy.service file
+      ansible.builtin.copy:
+        src: 'haproxy.service'
+        dest: '/etc/systemd/system/haproxy.service'
+        mode: '0755'
+
+    - name: Daemon reload
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Enable haproxy
+      ansible.builtin.service:
+        name: haproxy
+        enabled: yes
+
+  tags:
+    - install haproxy
+
+- name: Install Keepalived 2.2.7
+  block:
+    - name: Download Keepalived tar file
+      ansible.builtin.get_url:
+        url: https://www.keepalived.org/software/keepalived-2.2.7.tar.gz
+        checksum: 'md5:5f310b66a043a1fb31acf65af15e95bc'
+        dest: '~/keepalived-2.2.7.tar.gz'
+
+    - name: Unarchive tar file
+      ansible.builtin.unarchive:
+        src: '~/keepalived-2.2.7.tar.gz'
+        dest: '~'
+        remote_src: yes
+
+    - name: Install Keepalived
+      ansible.builtin.command:
+        chdir: '~/keepalived-2.2.7'
+        cmd: '{{ item }}'
+        creates: '/usr/local/sbin/keepalived'
+      with_items:
+        - './configure'
+        - 'make'
+        - 'make install'
+
+    - name: Copy binary to /usr/sbin
+      ansible.builtin.copy:
+        src: '/usr/local/sbin/keepalived'
+        dest: '/usr/sbin/keepalived'
+        remote_src: yes
+  tags:
+    - install keepalived
+
+- name: Configure keepalived
+  block:
+    - name: Make keepalived conf dir
+      ansible.builtin.file:
+        path: '/etc/keepalived'
+        state: directory
+        mode: '0755'
+
+    - name: Copy keepalived configuration file
+      ansible.builtin.template:
+        src: 'keepalived.conf.j2'
+        dest: '/etc/keepalived/keepalived.conf'
+        mode: '0644'
+
+    - name: Enable keepalived
+      ansible.builtin.service:
+        name: keepalived
+        enabled: yes
+          
+    - name: Restart keepalived
+      ansible.builtin.service:
+        name: keepalived
+        state: restarted
+
+    - name: Start iptables service
+      ansible.builtin.service:
+        name: iptables
+        state: started
+
+    - name: Allow VRRP protocol OUTPUT
+      ansible.builtin.iptables:
+        table: filter
+        chain: OUTPUT
+        protocol: vrrp
+        out_interface: '{{ ansible_interfaces | last }}'
+        comment: "Allow VRRP output for keepalived"
+        jump: ACCEPT
+      notify:
+        - save iptables
+        - restart iptables
+
+    - name: Allow VRRP protocol INPUT
+      ansible.builtin.iptables:
+        table: filter
+        chain: INPUT
+        protocol: vrrp
+        in_interface: '{{ ansible_interfaces | last }}'
+        comment: "Allow VRRP input for keepalived"
+        jump: ACCEPT
+      notify:
+        - save iptables
+        - restart iptables
+  tags:
+    - keepalived config
+
+- name: Configure HAProxy
+  block:
+    - name: Copy HAProxy file configured
+      ansible.builtin.template:
+        src: 'haproxy.cfg.j2'
+        dest: '/etc/haproxy/haproxy.cfg'
+        mode: '0644'
+
+    - name: Ensure haproxy is running
+      ansible.builtin.service:
+        name: haproxy
+        state: started
+
+    - name: Open HTTP and HTTPS ports
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: '{{ item }}'
+        ctstate: NEW
+        syn: match
+        jump: ACCEPT
+      with_items: [ 80, 443 ]
+      notify: 
+        - save iptables
+        - restart iptables
+  tags:
+    - haproxy config
