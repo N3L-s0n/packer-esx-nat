@@ -12,6 +12,20 @@
 
 - name: Filter table
   block:
+    - name: Forward Accept invalid state on lan
+      ansible.builtin.iptables:
+        table: filter
+        chain: FORWARD
+        protocol: tcp
+        action: insert
+        ctstate: INVALID
+        jump: ACCEPT
+        in_interface: '{{ network[0].interface }}'
+        out_interface: '{{ network[0].interface }}'
+      vars:
+        query: "[?name==`lan`]"
+        network: "{{ fnetworks | community.general.json_query(query) }}"
+
     - name: Forward rules for TCP
       ansible.builtin.iptables:
         table: filter

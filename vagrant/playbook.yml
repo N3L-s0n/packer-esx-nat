@@ -1,0 +1,4 @@
+---
+- name: Vagrant mock playbook to generate inventory
+  hosts: all
+  gather_facts: no

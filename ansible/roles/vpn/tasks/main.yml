@@ -93,3 +93,5 @@
     cmd: "(sudo -b openvpn client.conf)"
   delegate_to: 127.0.0.1
   become: no
+  tags:
+    - never

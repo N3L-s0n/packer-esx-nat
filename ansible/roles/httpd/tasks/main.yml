@@ -1,75 +1,84 @@
 ---
 # tasks file for httpd
 #
-- name: Install Apache HTTP 2.4.54
+- name: Install Apache HTTP
   block:
-    - name: Install dependencies
+    - name: Install httpd
       ansible.builtin.yum:
-        name: '{{ item }}'
+        name: httpd
         state: latest
-      with_items:
-        - '@Development Tools'
-        - expat-devel
-        - pcre
-        - pcre-devel
-        - openssl-devel
 
-    - name: Download Apache HTTP tar files
-      ansible.builtin.get_url:
-        url: '{{ item.url }}'
-        checksum: '{{ item.checksum }}'
-        dest: '{{ item.dest }}'
-      with_items:
-        - url: https://dlcdn.apache.org/httpd/httpd-2.4.54.tar.gz
-          checksum: 'sha256:c687b99c446c0ef345e7d86c21a8e15fc074b7d5152c4fe22b0463e2be346ffb'
-          dest: '~/httpd-2.4.54.tar.gz'
-        - url: https://dlcdn.apache.org//apr/apr-1.7.0.tar.gz
-          checksum: 'sha256:48e9dbf45ae3fdc7b491259ffb6ccf7d63049ffacbc1c0977cced095e4c2d5a2'
-          dest: '~/apr-1.7.0.tar.gz'
-        - url: https://dlcdn.apache.org//apr/apr-util-1.6.1.tar.gz
-          checksum: 'sha256:b65e40713da57d004123b6319828be7f1273fbc6490e145874ee1177e112c459'
-          dest: '~/apr-util-1.6.1.tar.gz'
+    - name: Install yum-utils
+      ansible.builtin.yum:
+        name: yum-utils
+        state: latest
+#   - name: Install dependencies
+#     ansible.builtin.yum:
+#       name: '{{ item }}'
+#       state: latest
+#     with_items:
+#       - '@Development Tools'
+#       - expat-devel
+#       - pcre
+#       - pcre-devel
+#       - openssl-devel
 
-    - name: Unarchive HTTP tar files
-      ansible.builtin.unarchive:
-        src: '{{ item.src }}'
-        dest: '~'
-        remote_src: yes
-      with_items:
-        - src: '~/httpd-2.4.54.tar.gz'
-        - src: '~/apr-1.7.0.tar.gz'
-        - src: '~/apr-util-1.6.1.tar.gz'
+#   - name: Download Apache HTTP tar files
+#     ansible.builtin.get_url:
+#       url: '{{ item.url }}'
+#       checksum: '{{ item.checksum }}'
+#       dest: '{{ item.dest }}'
+#     with_items:
+#       - url: https://dlcdn.apache.org/httpd/httpd-2.4.54.tar.gz
+#         checksum: 'sha256:c687b99c446c0ef345e7d86c21a8e15fc074b7d5152c4fe22b0463e2be346ffb'
+#         dest: '~/httpd-2.4.54.tar.gz'
+#       - url: https://dlcdn.apache.org//apr/apr-1.7.0.tar.gz
+#         checksum: 'sha256:48e9dbf45ae3fdc7b491259ffb6ccf7d63049ffacbc1c0977cced095e4c2d5a2'
+#         dest: '~/apr-1.7.0.tar.gz'
+#       - url: https://dlcdn.apache.org//apr/apr-util-1.6.1.tar.gz
+#         checksum: 'sha256:b65e40713da57d004123b6319828be7f1273fbc6490e145874ee1177e112c459'
+#         dest: '~/apr-util-1.6.1.tar.gz'
 
-    - name: Copy APR dir to httpd location
-      ansible.builtin.command:
-        cmd: 'mv ~/apr-1.7.0 ~/httpd-2.4.54/srclib/apr'
-        creates: '~/httpd-2.4.54/srclib/apr'
+#   - name: Unarchive HTTP tar files
+#     ansible.builtin.unarchive:
+#       src: '{{ item.src }}'
+#       dest: '~'
+#       remote_src: yes
+#     with_items:
+#       - src: '~/httpd-2.4.54.tar.gz'
+#       - src: '~/apr-1.7.0.tar.gz'
+#       - src: '~/apr-util-1.6.1.tar.gz'
 
-    - name: Copy APR-util dir to httpd location
-      ansible.builtin.command:
-        cmd: 'mv ~/apr-util-1.6.1 ~/httpd-2.4.54/srclib/apr-util'
-        creates: '~/httpd-2.4.54/srclib/apr-util'
+#   - name: Copy APR dir to httpd location
+#     ansible.builtin.command:
+#       cmd: 'mv ~/apr-1.7.0 ~/httpd-2.4.54/srclib/apr'
+#       creates: '~/httpd-2.4.54/srclib/apr'
+
+#   - name: Copy APR-util dir to httpd location
+#     ansible.builtin.command:
+#       cmd: 'mv ~/apr-util-1.6.1 ~/httpd-2.4.54/srclib/apr-util'
+#       creates: '~/httpd-2.4.54/srclib/apr-util'
         
-    - name: Install HTTPD
-      ansible.builtin.command:
-        chdir: '~/httpd-2.4.54'
-        cmd: '{{ item }}'
-        creates: '/usr/local/apache'
-      with_items:
-          - './buildconf'
-          - './configure --enable-ssl --enable-so --with-mpm=event --with-included-apr --prefix=/usr/local/apache'
-          - 'make'
-          - 'make install'
+#   - name: Install HTTPD
+#     ansible.builtin.command:
+#       chdir: '~/httpd-2.4.54'
+#       cmd: '{{ item }}'
+#       creates: '/usr/local/apache'
+#     with_items:
+#         - './buildconf'
+#         - './configure --enable-ssl --enable-so --with-mpm=event --with-included-apr --prefix=/usr/local/apache'
+#         - 'make'
+#         - 'make install'
 
-    - name: Copy httpd.service file
-      ansible.builtin.copy:
-        src: 'httpd.service'
-        dest: '/etc/systemd/system/httpd.service'
-        mode: '0755'
+#   - name: Copy httpd.service file
+#     ansible.builtin.copy:
+#       src: 'httpd.service'
+#       dest: '/etc/systemd/system/httpd.service'
+#       mode: '0755'
 
-    - name: Daemon reload
-      ansible.builtin.systemd:
-        daemon_reload: yes
+#   - name: Daemon reload
+#     ansible.builtin.systemd:
+#       daemon_reload: yes
 
     - name: Enable httpd
       ansible.builtin.service:
@@ -127,28 +136,28 @@
     - name: Set Apache VirtualHost
       template:
         src: "httpd.conf.j2"
-        dest: "/usr/local/apache/conf/extra/httpd-vhosts.conf"
+        dest: "/etc/httpd/conf.d/{{ http_host }}.conf"
         owner: root
         group: root
         mode: u=rw,g=r,o=r
 
-    - name: Include VirtualHost in httpd configuration file
-      ansible.builtin.replace:
-        path: /usr/local/apache/conf/httpd.conf
-        regexp: '#Include conf/extra/httpd-vhosts.conf'
-        replace: 'Include conf/extra/httpd-vhosts.conf'
+#   - name: Include VirtualHost in httpd configuration file
+#     ansible.builtin.replace:
+#       path: /usr/local/apache/conf/httpd.conf
+#       regexp: '#Include conf/extra/httpd-vhosts.conf'
+#       replace: 'Include conf/extra/httpd-vhosts.conf'
 
-    - name: Change DocumentRoot to /var/www/html
-      ansible.builtin.replace:
-        path: /usr/local/apache/conf/httpd.conf
-        regexp: 'DocumentRoot "/usr/local/apache/htdocs"'
-        replace: 'DocumentRoot "/var/www/html"'
+#   - name: Change DocumentRoot to /var/www/html
+#     ansible.builtin.replace:
+#       path: /usr/local/apache/conf/httpd.conf
+#       regexp: 'DocumentRoot "/usr/local/apache/htdocs"'
+#       replace: 'DocumentRoot "/var/www/html"'
 
-    - name: Change Default directory to /var/www
-      ansible.builtin.replace:
-        path: /usr/local/apache/conf/httpd.conf
-        regexp: '<Directory "/usr/local/apache/htdocs">'
-        replace: '<Directory "/var/www">'
+#   - name: Change Default directory to /var/www
+#     ansible.builtin.replace:
+#       path: /usr/local/apache/conf/httpd.conf
+#       regexp: '<Directory "/usr/local/apache/htdocs">'
+#       replace: '<Directory "/var/www">'
 
     - name: Set an apache user for administration folder
       command: htpasswd -cb /etc/httpd/.htpasswd {{ wp_user }} {{ wp_password }}

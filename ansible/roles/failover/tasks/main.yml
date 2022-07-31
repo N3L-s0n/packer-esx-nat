@@ -2,7 +2,7 @@
 # tasks file for failover
 - name: Install HAProxy 2.6.2
   block:
-    - name: Install dependencies and old HAProxy
+    - name: Install dependencies
       ansible.builtin.yum:
         name: '{{ item }}'
         state: latest
@@ -30,7 +30,7 @@
         cmd: '{{ item }}'
         creates: '/usr/local/sbin/haproxy'
       with_items:
-        - 'make TARGET=linux-glibc USE_PCRE=1 USE_OPENSSL=1 USE_ZLIB=1 USE_CRYPT_H=1 USE_LIBCRYPT=1 USE_SYSTEMD=1'
+        - 'make TARGET=linux-glibc USE_PCRE=1 USE_OPENSSL=1 USE_ZLIB=1 USE_CRYPT_H=1 USE_LIBCRYPT=1 USE_SYSTEMD=1 SSL_INC=/usr/include SSL_LIB=/usr/lib'
         - 'make install'
 
     - name: Copy haproxy.service file
@@ -140,6 +140,12 @@
 
 - name: Configure HAProxy
   block:
+    - name: Create HAProxy dir in etc
+      ansible.builtin.file:
+        path: '/etc/haproxy'
+        state: directory
+        mode: '0755'
+
     - name: Copy HAProxy file configured
       ansible.builtin.template:
         src: 'haproxy.cfg.j2'

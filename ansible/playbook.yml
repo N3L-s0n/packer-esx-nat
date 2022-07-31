@@ -7,31 +7,21 @@
   roles:
     - name: firewall
       become: yes
-      tags:
-        - firewall
-        - never
+
     - name: vpn
       become: yes
-      tags:
-        - never
-
-- hosts: loadbalancing
-  roles:
-    - name: failover
-      become: yes
-      tags:
-        - never
-
-- hosts: webservers
-  roles:
-    - name: httpd
-      become: yes
-      tags:
-        - never
 
 - hosts: databases
   roles:
     - name: mariadb
       become: yes
-      tags:
-        - testing
+
+- hosts: webservers
+  roles:
+    - name: httpd
+      become: yes
+
+- hosts: loadbalancing
+  roles:
+    - name: failover
+      become: yes

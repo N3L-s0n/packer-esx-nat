@@ -19,7 +19,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.provision "ansible" do |ansible|
 
-    ansible.playbook = "../ansible/playbook.yml"
+    ansible.playbook = "playbook.yml"
 
     ansible.host_vars = {
       "primary"   => { 
@@ -38,57 +38,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       "loadbalancing" => ["primary", "secondary"],
       "webservers" => ["app1", "app2"],
       "databases" => ["db1", "db2"]
-    }
-
-    ansible.extra_vars = {
-
-      "http_host" => "www.archipress.com",
-      "db_name" => "wordpress",
-      "db_user" => "wordpress",
-      "db_password" => "dev-password",
-
-      "wp_user" => "admin",
-      "wp_password" => "dev-password",
-
-      "networks" => [{
-        "name" => "wan",
-        "type" => "public",
-        "ipv4" => "192.168.0.0",
-        "prefix"  => "24",
-
-        "forward_from" => [ # FORWARD TO WAN
-          { "src_network" => "lan", "src_addr" => "network", "src_port" => "any", "dest_addr" => "any", "dest_port" => "80"},
-          { "src_network" => "lan", "src_addr" => "network", "src_port" => "any", "dest_addr" => "any", "dest_port" => "443"},
-        ]
-      },
-      {
-        "name" => "lan",
-        "type" => "private",
-        "ipv4" => "192.168.1.0",
-        "prefix"  => "24",
-
-        "forward_from" => [ # FORWARD TO LAN
-          { "src_network" => "wan", "src_addr" => "any", "src_port" => "any", "dest_addr" => "192.168.1.10", "dest_port" => "80"},
-          { "src_network" => "wan", "src_addr" => "any", "src_port" => "any", "dest_addr" => "192.168.1.10", "dest_port" => "443"},
-        ]
-      }],
-
-      "dnat_tcp" => { # PREROUTING
-        "80"  => "192.168.1.10", # HTTP
-        "443" => "192.168.1.10", # HTTPS
-      },
-      
-      # VPN VARIABLES
-      "vpn_client_ipv4" => "10.0.0.1",
-      "vpn_server_ipv4" => "10.0.0.2",
-      "vpn_remote_ipv4" => "192.168.0.101",
-
-      "vpn_routes" => [
-        {
-          "ipv4" => "192.168.1.0",
-          "netmask" => "255.255.255.0"
-        }
-      ]
     }
   end
 
@@ -180,7 +129,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   # DB 2 on LAN
   config.vm.define "db2" do |db|
-    db.vm.hostname = "test-app2.dev"
+    db.vm.hostname = "test-db2.dev"
     db.vm.network "private_network", ip: "192.168.1.32", netmask: "255.255.255.0",  # LAN
       virtualbox__intnet: "lan"
 
