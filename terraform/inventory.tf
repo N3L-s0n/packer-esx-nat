@@ -109,20 +109,23 @@ resource "local_file" "ansible_variables" {
     file_permission = "0666"
 }
 
-#resource "null_resource" "ansible_run" {
+resource "null_resource" "ansible_run" {
 
-    #depends_on = [
-        #resource.esxi_guest.firewall, 
-        #resource.esxi_guest.app, 
-        #resource.esxi_guest.db, 
-        #resource.esxi_guest.proxy, 
-        #resource.esxi_guest.admin, 
+    depends_on = [
+        resource.esxi_guest.firewall, 
+        resource.esxi_guest.app, 
+        resource.esxi_guest.db, 
+        resource.esxi_guest.lb, 
 
-        #resource.local_file.ansible_inventory,
-        #resource.local_file.ansible_variables
-    #]
+        resource.local_file.ansible_inventory,
+        resource.local_file.ansible_variables
+    ]
 
-    #provisioner "local-exec" {
-        #command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${path.root}/inventory --extra-vars '@${path.root}/variables.yml' ${path.root}/../ansible/playbook.yml"
-    #}
-#}
+    triggers = {
+        always_run = timestamp()
+    }
+
+    provisioner "local-exec" {
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${path.root}/inventory --extra-vars '@${path.root}/variables.yml' ${path.root}/../ansible/playbook.yml --tags never"
+    }
+}
