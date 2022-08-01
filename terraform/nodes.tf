@@ -11,15 +11,16 @@ resource "esxi_guest" "firewall" {
     }
 
     network_interfaces {
-        virtual_network = esxi_portgroup.dmz.name
-    }
-
-    network_interfaces {
         virtual_network = esxi_portgroup.lan.name
     }
 
     guestinfo = {
-        "metadata" = base64gzip(file("cloud-init/firewall.cfg"))
+        "metadata" = base64gzip(templatefile("templates/cloud-init_firewall.tpl", 
+                    {
+                        "firewall_public_ipv4"  = var.firewall_public_ipv4,
+                        "firewall_private_ipv4" = var.firewall_private_ipv4,
+                        "firewall_gateway_ipv4" = var.firewall_gateway_ipv4
+                    }))
         "metadata.encoding" = "gzip+base64"
     }
 
@@ -33,37 +34,14 @@ resource "esxi_guest" "firewall" {
             agent       = true
         }
     }
-
-#   provisioner "local-exec" {
-#       command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${var.pfsense_ip},' --extra-vars 'ansible_user=${var.pfsense_user} ansible_password=${var.pfsense_pass}' ../ansible/playbooks/pfsense/main.yml"
-#   }
 }
-# ========================================================
 
-# APP DMZ ================================================
-resource "esxi_guest" "app" {
-
-    guest_name  = "app"
-    disk_store  = var.esxi_datastore
-
-    ovf_source  = "../output-esxi/centos7.vmx"
-
-    network_interfaces {
-        virtual_network = esxi_portgroup.dmz.name
-    }
-
-    guestinfo = {
-        "metadata" = base64gzip(file("cloud-init/app.cfg"))
-        "metadata.encoding" = "gzip+base64"
-    }
-}
-# ========================================================
-
-
-# DB LAN =================================================
+# DB =====================================================
 resource "esxi_guest" "db" {
 
-    guest_name  = "db"
+    count = length(var.db_servers)
+    guest_name  = "db${count.index + 1}"
+
     disk_store  = var.esxi_datastore
 
     ovf_source  = "../output-esxi/centos7.vmx"
@@ -73,16 +51,22 @@ resource "esxi_guest" "db" {
     }
 
     guestinfo = {
-        "metadata" = base64gzip(file("cloud-init/db.cfg"))
+        "metadata" = base64gzip(templatefile("templates/cloud-init_server.tpl", 
+                    { 
+                        "ip_address" = element(var.db_servers, count.index), 
+                        "gateway_address" = var.firewall_private_ipv4
+                    }))
+
         "metadata.encoding" = "gzip+base64"
     }
 }
-# ========================================================
 
-# PROXY LAN ==============================================
-resource "esxi_guest" "proxy" {
+# APP LAN ================================================
+resource "esxi_guest" "app" {
 
-    guest_name  = "proxy"
+    count = length(var.app_servers)
+    guest_name  = "app${count.index + 1}"
+
     disk_store  = var.esxi_datastore
 
     ovf_source  = "../output-esxi/centos7.vmx"
@@ -92,16 +76,20 @@ resource "esxi_guest" "proxy" {
     }
 
     guestinfo = {
-        "metadata" = base64gzip(file("cloud-init/proxy.cfg"))
+        "metadata" = base64gzip(templatefile("templates/cloud-init_server.tpl", 
+                    { 
+                        "ip_address" = element(var.db_servers, count.index), 
+                        "gateway_address" = var.firewall_private_ipv4
+                    }))
         "metadata.encoding" = "gzip+base64"
     }
+
 }
-# ========================================================
+# LOAD BALANCE LAN =======================================
+resource "esxi_guest" "lb" {
 
-# ADMIN LAN ==============================================
-resource "esxi_guest" "admin" {
-
-    guest_name  = "admin"
+    count = length(var.lb_servers)
+    guest_name  = "lb${count.index + 1}"
     disk_store  = var.esxi_datastore
 
     ovf_source  = "../output-esxi/centos7.vmx"
@@ -111,8 +99,11 @@ resource "esxi_guest" "admin" {
     }
 
     guestinfo = {
-        "metadata" = base64gzip(file("cloud-init/admin.cfg"))
+        "metadata" = base64gzip(templatefile("templates/cloud-init_server.tpl", 
+                    { 
+                        "ip_address" = element(var.db_servers, count.index), 
+                        "gateway_address" = var.firewall_private_ipv4
+                    }))
         "metadata.encoding" = "gzip+base64"
     }
 }
-# ========================================================

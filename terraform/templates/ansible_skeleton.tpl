@@ -1,14 +1,10 @@
-[firewall]
 ${firewall_host_def}
 
-[app]
+[loadbalancing]
+${lb_host_def}
+
+[webservers]
 ${app_host_def}
 
-[db]
+[databases]
 ${db_host_def}
-
-[proxy]
-${proxy_host_def}
-
-[admin]
-${admin_host_def}

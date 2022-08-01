@@ -86,6 +86,8 @@
     chdir: "/etc/openvpn/server"
     cmd: "(sudo -b openvpn server.conf)"
   become: yes
+  tags:
+    - never
 
 - name: Execute openvpn client
   ansible.builtin.shell:

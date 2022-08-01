@@ -1,9 +1,10 @@
+
 #cloud-config
 network:
     version: 2
     ethernets:
         ens32:
-            addresses: [192.168.225.11]
-            gateway4: 192.168.225.1
+            addresses: [${ip_address}]
+            gateway4: ${gateway_address}
             nameservers:
                 addresses: [8.8.8.8, 8.8.4.4]

@@ -10,54 +10,48 @@ data "template_file" "ansible_firewall_host" {
     }
 }
 
-data "template_file" "ansible_app_host" {
+data "template_file" "ansible_db_hosts" {
 
-    template = file("${path.root}/templates/ansible_hosts.tpl") 
-    depends_on = [esxi_guest.app]
-    
-    vars = {
-        node_name       = esxi_guest.app.guest_name
-        ansible_user    = var.node_user
-        ip              = esxi_guest.app.ip_address
-    }
-}
-
-data "template_file" "ansible_db_host" {
+    count = length(var.db_servers)
 
     template = file("${path.root}/templates/ansible_hosts.tpl") 
     depends_on = [esxi_guest.db]
     
     vars = {
-        node_name       = esxi_guest.db.guest_name
+        node_name       = esxi_guest.db[count.index]["guest_name"]
         ansible_user    = var.node_user
-        ip              = esxi_guest.db.ip_address
+        ip              = esxi_guest.db[count.index]["ip_address"]
     }
 }
 
-data "template_file" "ansible_proxy_host" {
+
+data "template_file" "ansible_app_hosts" {
+
+    count = length(var.app_servers)
 
     template = file("${path.root}/templates/ansible_hosts.tpl") 
-    depends_on = [esxi_guest.proxy]
+    depends_on = [esxi_guest.app]
     
     vars = {
-        node_name       = esxi_guest.proxy.guest_name
+        node_name       = esxi_guest.app[count.index]["guest_name"]
         ansible_user    = var.node_user
-        ip              = esxi_guest.proxy.ip_address
+        ip              = esxi_guest.app[count.index]["ip_address"]
     }
 }
 
-data "template_file" "ansible_admin_host" {
+data "template_file" "ansible_lb_hosts" {
+
+    count = length(var.lb_servers)
 
     template = file("${path.root}/templates/ansible_hosts.tpl") 
-    depends_on = [esxi_guest.admin]
+    depends_on = [esxi_guest.lb]
     
     vars = {
-        node_name       = esxi_guest.admin.guest_name
+        node_name       = esxi_guest.lb[count.index]["guest_name"]
         ansible_user    = var.node_user
-        ip              = esxi_guest.admin.ip_address
+        ip              = esxi_guest.lb[count.index]["ip_address"]
     }
 }
-
 
 data "template_file" "ansible_skeleton" {
     
@@ -65,28 +59,30 @@ data "template_file" "ansible_skeleton" {
 
     vars = {
         firewall_host_def   = data.template_file.ansible_firewall_host.rendered
-        app_host_def        = data.template_file.ansible_app_host.rendered
-        db_host_def         = data.template_file.ansible_db_host.rendered
-        proxy_host_def      = data.template_file.ansible_proxy_host.rendered
-        admin_host_def      = data.template_file.ansible_admin_host.rendered
+        app_host_def        = join("", data.template_file.ansible_app_hosts.*.rendered)
+        db_host_def         = join("", data.template_file.ansible_db_hosts.*.rendered)
+        lb_host_def         = join("", data.template_file.ansible_lb_hosts.*.rendered)
     }
 }
 
 data "template_file" "variables_skeleton" {
 
     template = file("${path.root}/templates/ansible_variables.tpl")
-    depends_on = [esxi_guest.firewall, esxi_guest.app]
+    depends_on = [esxi_guest.firewall, esxi_guest.app, esxi_guest.db, esxi_guest.lb]
 
     vars = {
         wan_network     = var.wan_network 
         lan_network     = var.lan_network 
-        dmz_network     = var.dmz_network 
         
         firewall_addr   = esxi_guest.firewall.ip_address
-        app_addr        = esxi_guest.app.ip_address
-        db_addr         = esxi_guest.db.ip_address
-        proxy_addr      = esxi_guest.proxy.ip_address
-        admin_addr      = esxi_guest.admin.ip_address
+        app_addr        = var.app_address
+
+        database_name   = var.database_name
+        database_user   = var.database_user
+        database_password = var.database_password
+
+        wordpress_user = var.wordpress_user
+        wordpress_password = var.wordpress_password
     }
 }
 
@@ -109,20 +105,20 @@ resource "local_file" "ansible_variables" {
     file_permission = "0666"
 }
 
-resource "null_resource" "ansible_run" {
+#resource "null_resource" "ansible_run" {
 
-    depends_on = [
-        resource.esxi_guest.firewall, 
-        resource.esxi_guest.app, 
-        resource.esxi_guest.db, 
-        resource.esxi_guest.proxy, 
-        resource.esxi_guest.admin, 
+    #depends_on = [
+        #resource.esxi_guest.firewall, 
+        #resource.esxi_guest.app, 
+        #resource.esxi_guest.db, 
+        #resource.esxi_guest.proxy, 
+        #resource.esxi_guest.admin, 
 
-        resource.local_file.ansible_inventory,
-        resource.local_file.ansible_variables
-    ]
+        #resource.local_file.ansible_inventory,
+        #resource.local_file.ansible_variables
+    #]
 
-    provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${path.root}/inventory --extra-vars '@${path.root}/variables.yml' ${path.root}/../ansible/playbook.yml"
-    }
-}
+    #provisioner "local-exec" {
+        #command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${path.root}/inventory --extra-vars '@${path.root}/variables.yml' ${path.root}/../ansible/playbook.yml"
+    #}
+#}
