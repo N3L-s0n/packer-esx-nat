@@ -126,6 +126,6 @@ resource "null_resource" "ansible_run" {
     }
 
     provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${path.root}/inventory --extra-vars '@${path.root}/variables.yml' ${path.root}/../ansible/playbook.yml --tags never"
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ${path.root}/inventory --extra-vars '@${path.root}/variables.yml' ${path.root}/../ansible/playbook.yml --tags 'all, never'"
     }
 }

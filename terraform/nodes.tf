@@ -78,7 +78,7 @@ resource "esxi_guest" "app" {
     guestinfo = {
         "metadata" = base64gzip(templatefile("templates/cloud-init_server.tpl", 
                     { 
-                        "ip_address" = element(var.db_servers, count.index), 
+                        "ip_address" = element(var.app_servers, count.index), 
                         "gateway_address" = var.firewall_private_ipv4
                     }))
         "metadata.encoding" = "gzip+base64"
@@ -101,7 +101,7 @@ resource "esxi_guest" "lb" {
     guestinfo = {
         "metadata" = base64gzip(templatefile("templates/cloud-init_server.tpl", 
                     { 
-                        "ip_address" = element(var.db_servers, count.index), 
+                        "ip_address" = element(var.lb_servers, count.index), 
                         "gateway_address" = var.firewall_private_ipv4
                     }))
         "metadata.encoding" = "gzip+base64"

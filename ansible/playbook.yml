@@ -1,15 +1,16 @@
 ---
-- name: Collect data
-  hosts: all
-  gather_facts: yes
-
 - hosts: firewall
+  gather_facts: yes
   roles:
     - name: firewall
       become: yes
 
     - name: vpn
       become: yes
+
+- name: Collect data
+  hosts: all
+  gather_facts: yes
 
 - hosts: databases
   roles:
